@@ -109,5 +109,33 @@ src/
 
 ## Deploy
 
-Es una SPA estática (`npm run build` → `dist/`). El hosting tiene que redirigir todas las
-rutas a `index.html` y servir con `VITE_API_URL` apuntando al backend.
+Es una SPA estática: el build genera `dist/` y no necesita un servidor Node en ejecución.
+
+```bash
+nvm use        # Node 22 (ver .nvmrc)
+npm ci
+npm run build  # usa .env.production → API en Render
+```
+
+Checklist del hosting:
+
+1. **Publicar `dist/`** por HTTPS.
+2. **Fallback de SPA:** cualquier ruta que no sea un archivo debe devolver `index.html`
+   (si no, recargar en `/pedidos` da 404). En nginx:
+
+   ```nginx
+   location / {
+     try_files $uri /index.html;
+   }
+   ```
+
+3. **Caché:** `assets/*` puede cachearse por un año (los nombres cambian en cada build);
+   `index.html` sin caché (`Cache-Control: no-cache`), para que cada deploy se vea al instante.
+4. **CORS en el backend:** agregar el dominio del front (p. ej. `https://tudominio.com`) a
+   `CORS_ORIGINS` del servicio en Render. Sin eso el navegador bloquea todas las llamadas,
+   incluido el login.
+5. **Datos iniciales:** un usuario ADMIN en la base de producción (`npm run bootstrap:admin`
+   en el backend) y al menos una zona activa, cargada desde **Zonas**.
+
+Para apuntar a otra API, cambiar `VITE_API_URL` en `.env.production` (o pasarla como variable
+de entorno al build) y volver a buildear: el valor queda fijo dentro del bundle.
