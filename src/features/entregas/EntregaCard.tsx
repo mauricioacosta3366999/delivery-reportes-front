@@ -33,7 +33,7 @@ export function EntregaCard({ pedido, usuario, onAccion, cargando }: Props) {
               {pedido.zonaNombre} · {productos} {productos === 1 ? 'producto' : 'productos'} · de {pedido.vendedorNombre}
             </p>
           </div>
-          <EstadoBadge estado={pedido.estado} />
+          <EstadoBadge pedido={pedido} />
         </div>
 
         {pedido.zonaRequiereTransportadora && (

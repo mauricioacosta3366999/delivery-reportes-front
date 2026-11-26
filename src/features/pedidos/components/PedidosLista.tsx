@@ -31,7 +31,7 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
                       {mostrarVendedor && ` · ${pedido.vendedorNombre}`}
                     </p>
                   </div>
-                  <EstadoBadge estado={pedido.estado} />
+                  <EstadoBadge pedido={pedido} />
                 </div>
                 <div className="tabular grid grid-cols-3 gap-2 rounded-xl bg-crema/60 px-3 py-2 text-xs">
                   <Monto label="Venta" valor={pedido.totalVenta} />
@@ -82,7 +82,7 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
                 <td className="tabular px-4 py-3 text-right whitespace-nowrap">{formatGs(pedido.costoDelivery)}</td>
                 <td className="tabular px-4 py-3 text-right font-semibold whitespace-nowrap text-cafe">{formatGs(pedido.montoARendir)}</td>
                 <td className="px-4 py-3">
-                  <EstadoBadge estado={pedido.estado} />
+                  <EstadoBadge pedido={pedido} />
                 </td>
               </tr>
             ))}

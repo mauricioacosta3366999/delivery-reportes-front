@@ -199,7 +199,7 @@ function UsuarioFormDialog({ usuario, soyYo, onClose }: { usuario: Usuario | nul
       onClose()
     } catch (error) {
       setFormError(
-        applyApiErrors(error, setError, Object.keys(schema.shape), { password: 'La contraseña debe tener entre 12 y 128 caracteres.' }),
+        applyApiErrors(error, setError, Object.keys(schema.shape)),
       )
     }
   })
@@ -251,7 +251,7 @@ function UsuarioFormDialog({ usuario, soyYo, onClose }: { usuario: Usuario | nul
         <Field
           label={usuario ? 'Nueva contraseña' : 'Contraseña'}
           optional={Boolean(usuario)}
-          hint={usuario ? 'Dejala vacía para no cambiarla. Entre 12 y 128 caracteres.' : 'Entre 12 y 128 caracteres. Compartila con la persona por un canal seguro.'}
+          hint={usuario ? 'Dejala vacía para no cambiarla.' : 'Compartila con la persona por un canal seguro.'}
           error={errors.password?.message}
         >
           {(a11y) => <Input {...a11y} type="password" autoComplete="new-password" {...register('password')} />}

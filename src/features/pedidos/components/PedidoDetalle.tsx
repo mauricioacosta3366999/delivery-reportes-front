@@ -34,7 +34,7 @@ export function PedidoDetalle({ pedido, acciones, extra }: { pedido: Pedido; acc
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
       <div className="space-y-5">
-        <CardSection title="Cliente y entrega" action={<EstadoBadge estado={pedido.estado} />}>
+        <CardSection title="Cliente y entrega" action={<EstadoBadge pedido={pedido} />}>
           <DataList
             items={[
               { label: 'Cliente', value: pedido.nombreCliente },

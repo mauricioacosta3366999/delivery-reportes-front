@@ -8,6 +8,10 @@ export interface Zona {
   descripcion: string
   costoDelivery: number
   requiereTransportadora: boolean
+  /** Delivery al que se asignan solos los pedidos nuevos de la zona (CU-13). */
+  repartidorDefaultId?: string | null
+  /** Pedidos en curso de la zona; solo viene para el ADMIN (CU-14). */
+  pedidosActivos?: number
   activa: boolean
   createdAt: string
   updatedAt: string
@@ -18,6 +22,7 @@ export interface ZonaInput {
   descripcion?: string
   costoDelivery: number
   requiereTransportadora?: boolean
+  repartidorDefaultId?: string | null
   activa?: boolean
 }
 

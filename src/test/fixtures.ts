@@ -2,7 +2,7 @@ import type { Pedido } from '@/features/pedidos/types'
 import type { Rol, Usuario } from '@/features/usuarios/types'
 import type { Zona } from '@/features/zonas/api'
 
-const ids: Record<Rol, string> = {
+export const ids: Record<Rol, string> = {
   ADMIN: '6737a1f0c2b4e8a1d4f00000',
   VENDEDOR: '6737a1f0c2b4e8a1d4f00001',
   REPARTIDOR: '6737a1f0c2b4e8a1d4f00002',
@@ -39,6 +39,7 @@ export function makeZona(overrides: Partial<Zona> = {}): Zona {
     descripcion: 'Interior, envío por transportadora',
     costoDelivery: 40000,
     requiereTransportadora: true,
+    repartidorDefaultId: null,
     activa: true,
     createdAt: '2026-11-15T20:00:00.000Z',
     updatedAt: '2026-11-15T20:00:00.000Z',
@@ -49,10 +50,13 @@ export function makeZona(overrides: Partial<Zona> = {}): Zona {
 export function makePedido(overrides: Partial<Pedido> = {}): Pedido {
   return {
     _id: '6737c000c2b4e8a1d4f00101',
+    numero: 58,
     vendedorId: ids.VENDEDOR,
     vendedorNombre: 'Luciano Benítez',
+    vendedorContacto: '0981 123 456',
     fechaPedido: '2026-10-05T03:00:00.000Z',
     repartidorId: null,
+    asignadoPor: null,
     zonaId: '6737b000c2b4e8a1d4f00012',
     zonaNombre: 'Tobatí',
     zonaRequiereTransportadora: true,
@@ -65,6 +69,8 @@ export function makePedido(overrides: Partial<Pedido> = {}): Pedido {
     totalVenta: 310000,
     montoTotal: 350000,
     montoARendir: 270000,
+    totalCosto: null,
+    pagoDirectoVendedor: false,
     estado: 'INICIADO',
     observaciones: '',
     tomadoAt: null,

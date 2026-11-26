@@ -21,9 +21,6 @@ const schema = z.object({
 })
 type Values = z.input<typeof schema>
 
-/** Traducción de los rechazos del backend (sus mensajes vienen en inglés). */
-const mensajesServidor = { password: 'La contraseña debe tener entre 12 y 128 caracteres.' }
-
 const tipos = [
   { value: 'VENDEDOR', titulo: 'Vendedor', detalle: 'Cargo pedidos y descargo mis reportes', icon: 'box' },
   { value: 'REPARTIDOR', titulo: 'Delivery', detalle: 'Tomo pedidos y los entrego', icon: 'truck' },
@@ -51,7 +48,7 @@ export function RegisterPage() {
       const usuario = await registrar({ rol, nombre, correo, password, ...(contacto ? { contacto } : {}) })
       navigate(homePath(usuario.rol), { replace: true })
     } catch (error) {
-      setFormError(applyApiErrors(error, setError, ['nombre', 'correo', 'password', 'rol', 'contacto'], mensajesServidor))
+      setFormError(applyApiErrors(error, setError, ['nombre', 'correo', 'password', 'rol', 'contacto']))
     }
   })
 
@@ -114,7 +111,7 @@ export function RegisterPage() {
         <Field label="Contacto" optional hint="Teléfono o WhatsApp" error={errors.contacto?.message}>
           {(a11y) => <Input {...a11y} type="tel" autoComplete="tel" inputMode="tel" placeholder="0981 123 456" {...register('contacto')} />}
         </Field>
-        <Field label="Contraseña" hint="Entre 12 y 128 caracteres" error={errors.password?.message}>
+        <Field label="Contraseña" error={errors.password?.message}>
           {(a11y) => <Input {...a11y} type="password" autoComplete="new-password" {...register('password')} />}
         </Field>
 
