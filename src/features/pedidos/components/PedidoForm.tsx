@@ -304,12 +304,12 @@ function ProductosSection({
           const subtotal = item && Number.isFinite(item.cantidad) && Number.isFinite(item.precioUnitario) ? item.cantidad * item.precioUnitario : null
           return (
             <li key={field.id} className="rounded-xl border border-linea bg-crema/40 p-3">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_88px_140px_140px]">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-[88px_minmax(0,1fr)_minmax(0,1fr)]">
                 <Controller
                   control={control}
                   name={`productos.${index}.nombre`}
                   render={({ field: nombre }) => (
-                    <Field label={`Producto ${index + 1}`} error={fila?.nombre?.message} className="col-span-2 sm:col-span-1">
+                    <Field label={`Producto ${index + 1}`} error={fila?.nombre?.message} className="col-span-full">
                       {(a11y) => (
                         <ProductoCombobox
                           a11y={a11y}

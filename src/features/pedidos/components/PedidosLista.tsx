@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { Card } from '@/components/ui/Card'
+import { cn } from '@/components/ui/cn'
 import { Icon } from '@/components/ui/Icon'
 import { formatFecha, formatGs } from '@/lib/format'
 import { codigoPedido } from '../numero'
@@ -21,6 +22,8 @@ const puedeAsignarse = (pedido: Pedido) => pedido.estado === 'INICIADO' || pedid
 
 /** Cards en mobile, tabla desde md. */
 export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreRepartidor, onAsignar }: Props) {
+  // La vista admin tiene muchas columnas: venta y delivery se ven recién en pantallas anchas (están en el detalle).
+  const compacta = Boolean(mostrarVendedor && nombreRepartidor)
   return (
     <>
       <ul className="space-y-3 md:hidden">
@@ -67,7 +70,7 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
         ))}
       </ul>
 
-      <Card className="hidden overflow-hidden md:block">
+      <Card className="hidden overflow-x-auto md:block">
         <table className="w-full text-left text-sm">
           <thead className="bg-celeste-50 text-xs font-semibold tracking-wide text-azul-900 uppercase">
             <tr>
@@ -77,8 +80,8 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
               {mostrarVendedor && <th scope="col" className="px-4 py-3">Vendedor</th>}
               <th scope="col" className="px-4 py-3">Zona</th>
               {nombreRepartidor && <th scope="col" className="px-4 py-3">Delivery</th>}
-              <th scope="col" className="px-4 py-3 text-right">Venta</th>
-              <th scope="col" className="px-4 py-3 text-right">Delivery</th>
+              <th scope="col" className={cn('px-4 py-3 text-right', compacta && 'hidden xl:table-cell')}>Venta</th>
+              <th scope="col" className={cn('px-4 py-3 text-right', compacta && 'hidden xl:table-cell')}>Delivery</th>
               <th scope="col" className="px-4 py-3 text-right">A rendir</th>
               <th scope="col" className="px-4 py-3">Estado</th>
               {onAsignar && (
@@ -103,8 +106,8 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
                 {nombreRepartidor && (
                   <td className="max-w-40 truncate px-4 py-3 text-gris">{pedido.repartidorId ? (nombreRepartidor(pedido.repartidorId) ?? '—') : '—'}</td>
                 )}
-                <td className="tabular px-4 py-3 text-right whitespace-nowrap">{formatGs(pedido.totalVenta)}</td>
-                <td className="tabular px-4 py-3 text-right whitespace-nowrap">{formatGs(pedido.costoDelivery)}</td>
+                <td className={cn('tabular px-4 py-3 text-right whitespace-nowrap', compacta && 'hidden xl:table-cell')}>{formatGs(pedido.totalVenta)}</td>
+                <td className={cn('tabular px-4 py-3 text-right whitespace-nowrap', compacta && 'hidden xl:table-cell')}>{formatGs(pedido.costoDelivery)}</td>
                 <td className="tabular px-4 py-3 text-right font-semibold whitespace-nowrap text-cafe">{formatGs(pedido.montoARendir)}</td>
                 <td className="px-4 py-3">
                   <EstadoBadge pedido={pedido} />

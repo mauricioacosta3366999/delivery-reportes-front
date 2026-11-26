@@ -72,7 +72,7 @@ export function ProductoCombobox({ a11y, value, name, ref, onBlur, onChange, onE
         aria-expanded={visible}
         aria-controls={listboxId}
         aria-activedescendant={visible && activo >= 0 ? `${listboxId}-${activo}` : undefined}
-        placeholder="Escribí para buscar en tu catálogo"
+        placeholder={vendedorId ? 'Escribí para buscar en su catálogo' : 'Escribí para buscar en tu catálogo'}
         autoComplete="off"
         onChange={(event) => {
           onChange(event.target.value)

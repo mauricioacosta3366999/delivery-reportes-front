@@ -1,8 +1,12 @@
 # Delivery Reportes — Front
 
 SPA para el sistema de delivery: vendedores cargan pedidos, deliverys los toman y los entregan,
-y cada uno descarga su reporte mensual en PDF. Consume la API de
-[`Delivery-reportes-api`](../Delivery-reportes-api) (casos de uso en `use_cases/`).
+y cada uno descarga su reporte mensual en PDF o Excel. Consume la API de
+[`Delivery-reportes-api`](../Delivery-reportes-api) (casos de uso CU-01 a CU-16 en `use_cases/`).
+
+> **Compatibilidad:** este front usa los campos y filtros de las etapas 1 a 5 de la API
+> (número de pedido, asignación, catálogo, Excel…). La API es estricta, así que **siempre se
+> deploya primero la API (con `npm run migrate`) y después el front**.
 
 **Stack:** React 19 · Vite 8 · TypeScript · Tailwind CSS v4 · React Router · TanStack Query ·
 React Hook Form + Zod · Vitest + Testing Library + MSW.
@@ -69,12 +73,14 @@ vendedores y deliverys desde `/registro`.
 
 | Rol | Rutas | Puede |
 |---|---|---|
-| Vendedor | `/pedidos`, `/pedidos/nuevo`, `/pedidos/:id`, `/reportes` | Crear, ver, editar y cancelar sus pedidos (mientras estén INICIADOS); reporte mensual |
-| Delivery | `/entregas` (Disponibles / Pendientes / Entregados), `/reportes` | Tomar pedidos disponibles y marcarlos como entregados |
-| Admin | `/admin/pedidos`, `/admin/zonas`, `/admin/usuarios`, `/reportes` | Ver todos los pedidos, gestionar zonas y usuarios, reportes por vendedor o delivery |
+| Vendedor | `/pedidos`, `/pedidos/nuevo`, `/pedidos/:id`, `/productos`, `/reportes` | Crear, ver, editar y cancelar sus pedidos (mientras estén INICIADOS, aunque estén asignados); marcar "el cliente ya me pagó"; catálogo con precio y costo; reporte mensual |
+| Delivery | `/entregas` (Disponibles / Pendientes / Entregados), `/reportes` | Ver primero los pedidos asignados a él, tomar disponibles, marcarlos como entregados (y corregir quién cobró) |
+| Admin | `/admin/pedidos`, `/admin/deliverys`, `/admin/zonas`, `/admin/productos`, `/admin/usuarios`, `/reportes` | Todos los pedidos (crear a nombre de un vendedor, asignar o liberar el delivery), carga por delivery y zona, zonas con delivery por defecto, catálogos, usuarios y reportes |
 
-Ciclo del pedido: **Iniciado → Tomado → Entregado** (o **Cancelado** mientras nadie lo tomó).
-Las etiquetas visibles están en `src/features/pedidos/types.ts` (`estadoLabels`).
+Ciclo del pedido: **Iniciado** (recibe su número `#N`) → *Asignado* (opcional: por el admin o
+por la zona; sigue siendo INICIADO) → **Tomado** → **Entregado** (o **Cancelado** mientras nadie
+lo tomó). El admin puede reasignar o liberar un pedido tomado. Las etiquetas visibles están en
+`src/features/pedidos/types.ts` (`estadoLabels`); "Asignado" lo arma `EstadoBadge`.
 
 ## Estructura
 
@@ -84,10 +90,11 @@ src/
   components/ui/  kit propio: Button, Field/Input/Select, Card, Dialog, Toast, Tabs, MoneyInput…
   features/
     auth/         sesión (localStorage + logout al vencer el JWT), login, registro, guards
-    pedidos/      tipos, API + hooks de Query, formulario, listado, detalle, acciones
+    pedidos/      tipos, API + hooks de Query, formulario, listado, detalle, acciones, asignación
+    productos/    catálogo del vendedor (y buscador del formulario de pedido)
     entregas/     vista mobile-first del delivery
-    reportes/     descarga del PDF mensual
-    admin/        pedidos, zonas y usuarios
+    reportes/     descarga del reporte mensual (PDF o Excel)
+    admin/        pedidos, deliverys, zonas y usuarios
   lib/            cliente HTTP (ApiError), formatos (Gs, fechas en America/Asuncion)
   test/           MSW, fixtures y helper para montar la app
 ```
@@ -95,7 +102,11 @@ src/
 ## Convenciones
 
 - **Importes:** enteros en guaraníes, formateados `es-PY` (`350.000 Gs`). El front muestra
-  una vista previa, pero **los importes los calcula siempre el backend**: nunca se envían.
+  una vista previa (`calcularMontos`, con pago directo y ganancia), pero **los importes los
+  calcula siempre el backend**: nunca se envían.
+- **Pago directo al vendedor:** el delivery no cobra (`montoTotal = 0`) y a rendir = −delivery.
+- **Costos:** el delivery nunca los recibe; el vendedor y el admin ven costo y ganancia.
+- **Teléfonos:** cada contacto ofrece llamar y WhatsApp (`lib/telefono.ts`: `0981…` → `wa.me/595981…`).
 - **Contratos estrictos:** la API rechaza campos desconocidos, así que los opcionales vacíos
   se omiten (ver `toCreatePayload` / `toUpdatePayload` en `features/pedidos/form.ts`).
 - **Errores:** `ApiError { status, message, detalles }`. Los `detalles` de un 400 se mapean a
