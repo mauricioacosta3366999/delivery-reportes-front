@@ -8,6 +8,7 @@ import { ApiError, getErrorMessage } from '@/lib/api/client'
 import { usePedido } from '../api'
 import { AccionesPedido } from '../components/AccionesPedido'
 import { PedidoDetalle, TelLink } from '../components/PedidoDetalle'
+import { codigoPedido } from '../numero'
 
 interface Props {
   /** Ruta del listado al que vuelve, p. ej. /pedidos, /entregas o /admin/pedidos. */
@@ -48,7 +49,7 @@ export function PedidoDetallePage({ basePath, backLabel }: Props) {
   return (
     <>
       {volver}
-      <PageHeader title={pedido.nombreCliente} description={`Pedido #${pedido._id.slice(-6).toUpperCase()} · ${pedido.zonaNombre}`} />
+      <PageHeader title={pedido.nombreCliente} description={`Pedido ${codigoPedido(pedido)} · ${pedido.zonaNombre}`} />
       <PedidoDetalle
         pedido={pedido}
         acciones={<AccionesPedido pedido={pedido} usuario={usuario} editarPath={`${basePath}/${pedido._id}/editar`} />}

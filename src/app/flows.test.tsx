@@ -163,7 +163,7 @@ describe('delivery toma un pedido (CU-07)', () => {
     const { user } = renderApp('/entregas', { usuario: makeUsuario('REPARTIDOR') })
     await user.click(await screen.findByRole('button', { name: 'Tomar pedido' }))
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Tomar pedido' }))
-    expect(await screen.findByText(/Pedido tomado/)).toBeInTheDocument()
+    expect(await screen.findByText(/Pedido #58 tomado/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('tab', { name: 'Pendientes' }))
     expect(await screen.findByRole('button', { name: /Marcar como entregado/ })).toBeInTheDocument()

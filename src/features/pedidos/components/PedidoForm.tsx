@@ -3,14 +3,16 @@ import { useState, type ReactNode } from 'react'
 import { Controller, useFieldArray, useForm, useWatch, type Control, type UseFormRegister, type FieldErrors } from 'react-hook-form'
 import { Button } from '@/components/ui/Button'
 import { Card, CardSection } from '@/components/ui/Card'
-import { Field, FormError, Input, Select, Textarea } from '@/components/ui/Field'
+import { Checkbox, Field, FormError, Input, Select, Textarea } from '@/components/ui/Field'
 import { Icon } from '@/components/ui/Icon'
 import { MoneyInput } from '@/components/ui/MoneyInput'
 import { PageLoader } from '@/components/ui/Spinner'
+import type { Usuario } from '@/features/usuarios/types'
 import { useZonasActivas, type Zona } from '@/features/zonas/api'
+import { ApiError } from '@/lib/api/client'
 import { applyApiErrors } from '@/lib/api/errors'
 import { formatGs } from '@/lib/format'
-import { CAMPOS_PEDIDO, calcularMontos, pedidoFormSchema, productoVacio, type PedidoFormValues } from '../form'
+import { CAMPOS_PEDIDO, calcularMontos, ganancia, pedidoFormSchema, productoVacio, type PedidoFormValues } from '../form'
 import { enlaceMapa, normalizarEntrega, UBICACION_RETIRO } from '../ubicacion'
 
 /** Zona histórica del pedido en edición (puede estar inactiva y conserva su tarifa). */
@@ -19,6 +21,14 @@ export interface ZonaActual {
   nombre: string
   costoDelivery: number
   requiereTransportadora: boolean
+  repartidorDefaultId?: string | null
+}
+
+/** Solo el admin al crear (CU-10, CU-12): a nombre de qué vendedor y qué delivery. */
+export interface OpcionesAdmin {
+  yo: string
+  vendedores: Usuario[]
+  repartidores: Usuario[]
 }
 
 interface PedidoFormProps {
@@ -28,9 +38,16 @@ interface PedidoFormProps {
   onSubmit: (values: PedidoFormValues) => Promise<unknown>
   onCancel: () => void
   emptyZonas?: ReactNode
+  admin?: OpcionesAdmin
 }
 
-export function PedidoForm({ defaultValues, zonaActual, submitLabel, onSubmit, onCancel, emptyZonas }: PedidoFormProps) {
+/** Errores de negocio sin `detalles` que corresponden a un campo puntual. */
+const erroresDeCampo: Array<[RegExp, 'vendedorId' | 'repartidorId']> = [
+  [/^Vendedor inexistente/i, 'vendedorId'],
+  [/^Delivery inexistente/i, 'repartidorId'],
+]
+
+export function PedidoForm({ defaultValues, zonaActual, submitLabel, onSubmit, onCancel, emptyZonas, admin }: PedidoFormProps) {
   const zonas = useZonasActivas()
   const [formError, setFormError] = useState<string | null>(null)
   const {
@@ -46,6 +63,8 @@ export function PedidoForm({ defaultValues, zonaActual, submitLabel, onSubmit, o
     try {
       await onSubmit(values)
     } catch (error) {
+      const campo = error instanceof ApiError ? erroresDeCampo.find(([patron]) => patron.test(error.message))?.[1] : undefined
+      if (campo && error instanceof ApiError) setError(campo, { message: error.message })
       setFormError(applyApiErrors(error, setError, CAMPOS_PEDIDO))
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -58,6 +77,7 @@ export function PedidoForm({ defaultValues, zonaActual, submitLabel, onSubmit, o
     nombre: zona.nombre,
     costoDelivery: zona.costoDelivery,
     requiereTransportadora: zona.requiereTransportadora,
+    repartidorDefaultId: zona.repartidorDefaultId ?? null,
   }))
   const zonaActualInactiva = zonaActual && !opciones.some((zona) => zona.id === zonaActual.id)
   if (opciones.length === 0 && !zonaActual && emptyZonas) return <>{emptyZonas}</>
@@ -66,6 +86,8 @@ export function PedidoForm({ defaultValues, zonaActual, submitLabel, onSubmit, o
     <form onSubmit={submit} noValidate className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
       <div className="space-y-5">
         <FormError message={formError} />
+
+        {admin && <AdminSection control={control} register={register} errors={errors} admin={admin} opciones={opciones} />}
 
         <CardSection title="Cliente">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -123,6 +145,11 @@ export function PedidoForm({ defaultValues, zonaActual, submitLabel, onSubmit, o
           </div>
         </CardSection>
 
+        <CardSection title="Cobro">
+          <Checkbox label="El cliente ya le pagó al vendedor (por ejemplo, por transferencia)" {...register('pagoDirectoVendedor')} />
+          <p className="mt-1 text-xs text-gris">El delivery no le cobra nada al cliente y en el reporte se descuenta el costo del delivery.</p>
+        </CardSection>
+
         <CardSection title="Observaciones">
           <Field label="Notas para el delivery" optional error={errors.observaciones?.message}>
             {(a11y) => <Textarea {...a11y} rows={3} placeholder="Ej.: llamar antes de llegar" {...register('observaciones')} />}
@@ -140,6 +167,58 @@ export function PedidoForm({ defaultValues, zonaActual, submitLabel, onSubmit, o
         </Button>
       </div>
     </form>
+  )
+}
+
+function AdminSection({
+  control,
+  register,
+  errors,
+  admin,
+  opciones,
+}: {
+  control: Control<PedidoFormValues>
+  register: UseFormRegister<PedidoFormValues>
+  errors: FieldErrors<PedidoFormValues>
+  admin: OpcionesAdmin
+  opciones: ZonaActual[]
+}) {
+  const zonaId = useWatch({ control, name: 'zonaId' })
+  const zona = opciones.find((opcion) => opcion.id === zonaId)
+  const porDefecto = zona?.repartidorDefaultId ? admin.repartidores.find((usuario) => usuario._id === zona.repartidorDefaultId) : undefined
+  const automatico = !zona ? 'según la zona' : porDefecto ? porDefecto.nombre : 'sin asignar (disponible para todos)'
+  const vendedores = admin.vendedores.filter((usuario) => usuario.activo)
+  const repartidores = admin.repartidores.filter((usuario) => usuario.activo)
+
+  return (
+    <CardSection title="Vendedor y delivery">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="¿A nombre de quién es el pedido?" hint="Le aparece en sus pedidos y en su reporte." error={errors.vendedorId?.message}>
+          {(a11y) => (
+            <Select {...a11y} {...register('vendedorId')}>
+              <option value="">Yo ({admin.yo})</option>
+              {vendedores.map((usuario) => (
+                <option key={usuario._id} value={usuario._id}>
+                  {usuario.nombre}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+        <Field label="Delivery" hint="Solo ese delivery lo va a ver y lo toma al retirarlo." error={errors.repartidorId?.message}>
+          {(a11y) => (
+            <Select {...a11y} {...register('repartidorId')}>
+              <option value="">Automático: {automatico}</option>
+              {repartidores.map((usuario) => (
+                <option key={usuario._id} value={usuario._id}>
+                  {usuario.nombre}
+                </option>
+              ))}
+            </Select>
+          )}
+        </Field>
+      </div>
+    </CardSection>
   )
 }
 
@@ -251,10 +330,11 @@ function EntregaField({
 }
 
 function ResumenMontos({ control, opciones, zonaActual }: { control: Control<PedidoFormValues>; opciones: ZonaActual[]; zonaActual?: ZonaActual }) {
-  const [productos, zonaId] = useWatch({ control, name: ['productos', 'zonaId'] })
+  const [productos, zonaId, pagoDirecto] = useWatch({ control, name: ['productos', 'zonaId', 'pagoDirectoVendedor'] })
   // Si la zona no cambió, el pedido conserva su tarifa histórica.
   const zona = zonaActual && zonaId === zonaActual.id ? zonaActual : opciones.find((opcion) => opcion.id === zonaId)
-  const montos = calcularMontos(productos ?? [], zona?.costoDelivery ?? 0)
+  const montos = calcularMontos(productos ?? [], zona?.costoDelivery ?? 0, pagoDirecto)
+  const gananciaVendedor = ganancia(montos.totalVenta, montos.totalCosto)
 
   return (
     <Card className="overflow-hidden">
@@ -269,13 +349,26 @@ function ResumenMontos({ control, opciones, zonaActual }: { control: Control<Ped
           <dd className="font-semibold">{zona ? formatGs(montos.costoDelivery) : '—'}</dd>
         </div>
         <div className="flex justify-between gap-3 border-t border-linea pt-2.5">
-          <dt className="font-semibold">Total a cobrar al cliente</dt>
+          <dt className="font-semibold">El delivery cobra</dt>
           <dd className="font-extrabold text-azul-900">{formatGs(montos.montoTotal)}</dd>
         </div>
+        {pagoDirecto && <p className="text-xs text-gris">El cliente ya le pagó al vendedor: el delivery no cobra nada.</p>}
         <div className="flex justify-between gap-3 rounded-lg bg-cafe-50 px-3 py-2">
           <dt className="font-semibold text-cafe">A rendir</dt>
           <dd className="font-extrabold text-cafe">{formatGs(montos.montoARendir)}</dd>
         </div>
+        {montos.totalCosto !== null && gananciaVendedor !== null && (
+          <>
+            <div className="flex justify-between gap-3 pt-1">
+              <dt className="text-gris">Costo de los productos</dt>
+              <dd className="font-semibold">{formatGs(montos.totalCosto)}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="font-semibold text-exito">Ganancia</dt>
+              <dd className="font-extrabold text-exito">{formatGs(gananciaVendedor)}</dd>
+            </div>
+          </>
+        )}
       </dl>
       <p className="border-t border-linea px-5 py-3 text-xs text-gris">Los importes finales los calcula el sistema al guardar.</p>
     </Card>

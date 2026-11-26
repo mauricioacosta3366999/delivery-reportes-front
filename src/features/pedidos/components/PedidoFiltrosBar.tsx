@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Field, Input, Select } from '@/components/ui/Field'
 import type { Usuario } from '@/features/usuarios/types'
@@ -17,7 +18,9 @@ export function PedidoFiltrosBar({ filtros, onChange, onLimpiar, activos, vended
   return (
     <Card className="mb-5 p-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:flex lg:flex-wrap lg:items-end">
-        <Field label="Estado" className="col-span-2 md:col-span-1 lg:w-44">
+        {/* La key reinicia el texto cuando el filtro cambia desde afuera (p. ej. "Limpiar"). */}
+        <NumeroFiltro key={filtros.numero ?? 'vacio'} valor={filtros.numero} onChange={(numero) => onChange({ numero })} />
+        <Field label="Estado" className="lg:w-44">
           {(a11y) => (
             <Select {...a11y} value={filtros.estado ?? ''} onChange={(event) => onChange({ estado: (event.target.value || undefined) as Estado | undefined })}>
               <option value="">Todos</option>
@@ -70,5 +73,33 @@ export function PedidoFiltrosBar({ filtros, onChange, onLimpiar, activos, vended
         )}
       </div>
     </Card>
+  )
+}
+
+/** N.º de pedido: se aplica al terminar de escribir (no en cada tecla). */
+function NumeroFiltro({ valor, onChange }: { valor?: number; onChange: (numero: number | undefined) => void }) {
+  const [texto, setTexto] = useState(valor ? String(valor) : '')
+
+  function aplicar() {
+    const numero = Number(texto.replace(/\D/g, ''))
+    const siguiente = Number.isSafeInteger(numero) && numero >= 1 ? numero : undefined
+    if (siguiente !== valor) onChange(siguiente)
+  }
+
+  return (
+    <Field label="N.º de pedido" className="lg:w-36">
+      {(a11y) => (
+        <Input
+          {...a11y}
+          type="search"
+          inputMode="numeric"
+          placeholder="Ej.: 57"
+          value={texto}
+          onChange={(event) => setTexto(event.target.value)}
+          onBlur={aplicar}
+          onKeyDown={(event) => event.key === 'Enter' && aplicar()}
+        />
+      )}
+    </Field>
   )
 }

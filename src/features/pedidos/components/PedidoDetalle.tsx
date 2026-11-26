@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { CardSection, DataList } from '@/components/ui/Card'
 import { Icon } from '@/components/ui/Icon'
 import { formatFecha, formatFechaHora, formatGs } from '@/lib/format'
+import { telefonoParaLlamar, whatsappUrl } from '@/lib/telefono'
+import { ganancia } from '../form'
 import type { Pedido, Ubicacion } from '../types'
 import { enlaceMapa, textoUbicacion } from '../ubicacion'
 import { EstadoBadge } from './EstadoBadge'
@@ -19,13 +21,29 @@ export function UbicacionLink({ ubicacion }: { ubicacion: Ubicacion }) {
   )
 }
 
+/** Teléfono con acceso directo para llamar y para abrir WhatsApp. */
 export function TelLink({ contacto }: { contacto: string }) {
-  const telefono = contacto.replace(/[^\d+]/g, '')
-  if (telefono.length < 6) return <>{contacto}</>
+  const telefono = telefonoParaLlamar(contacto)
+  if (!telefono) return <>{contacto}</>
+  const whatsapp = whatsappUrl(contacto)
   return (
-    <a href={`tel:${telefono}`} className="inline-flex items-center gap-1.5 font-medium text-azul underline-offset-4 hover:underline">
-      <Icon name="phone" className="size-4" /> {contacto}
-    </a>
+    <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+      <a href={`tel:${telefono}`} className="inline-flex min-h-9 items-center gap-1.5 font-medium text-azul underline-offset-4 hover:underline">
+        <Icon name="phone" className="size-4" /> {contacto}
+        <span className="sr-only"> (llamar)</span>
+      </a>
+      {whatsapp && (
+        <a
+          href={whatsapp}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-exito-50 px-3 text-xs font-semibold text-exito ring-1 ring-exito/20 ring-inset hover:bg-exito/15"
+        >
+          <Icon name="chat" className="size-4" /> WhatsApp
+          <span className="sr-only"> con {contacto} (abre WhatsApp)</span>
+        </a>
+      )}
+    </span>
   )
 }
 
@@ -54,7 +72,15 @@ export function PedidoDetalle({ pedido, acciones, extra }: { pedido: Pedido; acc
                   </span>
                 ),
               },
-              { label: 'Vendedor', value: pedido.vendedorNombre },
+              {
+                label: 'Vendedor',
+                value: (
+                  <span className="inline-flex flex-col gap-1">
+                    <span>{pedido.vendedorNombre}</span>
+                    {pedido.vendedorContacto && <TelLink contacto={pedido.vendedorContacto} />}
+                  </span>
+                ),
+              },
               ...(pedido.observaciones ? [{ label: 'Observaciones', value: <span className="whitespace-pre-line">{pedido.observaciones}</span>, full: true }] : []),
             ]}
           />
@@ -71,7 +97,12 @@ export function PedidoDetalle({ pedido, acciones, extra }: { pedido: Pedido; acc
                     · {producto.cantidad} × {formatGs(producto.precioUnitario)}
                   </span>
                 </span>
-                <span className="tabular font-semibold whitespace-nowrap">{formatGs(producto.cantidad * producto.precioUnitario)}</span>
+                <span className="text-right">
+                  <span className="tabular block font-semibold whitespace-nowrap">{formatGs(producto.cantidad * producto.precioUnitario)}</span>
+                  {producto.costoUnitario !== undefined && (
+                    <span className="tabular block text-xs whitespace-nowrap text-gris">Costo {formatGs(producto.cantidad * producto.costoUnitario)}</span>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
@@ -86,13 +117,23 @@ export function PedidoDetalle({ pedido, acciones, extra }: { pedido: Pedido; acc
             <Fila label="Venta de productos" valor={formatGs(pedido.totalVenta)} />
             <Fila label="Delivery" valor={formatGs(pedido.costoDelivery)} />
             <div className="flex justify-between gap-3 border-t border-linea pt-2.5">
-              <dt className="font-semibold">Total a cobrar</dt>
+              <dt className="font-semibold">El delivery cobra</dt>
               <dd className="font-extrabold text-azul-900">{formatGs(pedido.montoTotal)}</dd>
             </div>
+            {pedido.pagoDirectoVendedor && <NoCobrar />}
             <div className="flex justify-between gap-3 rounded-lg bg-cafe-50 px-3 py-2">
               <dt className="font-semibold text-cafe">A rendir</dt>
               <dd className="font-extrabold text-cafe">{formatGs(pedido.montoARendir)}</dd>
             </div>
+            {pedido.totalCosto !== null && pedido.totalCosto !== undefined && (
+              <>
+                <Fila label="Costo de los productos" valor={formatGs(pedido.totalCosto)} />
+                <div className="flex justify-between gap-3">
+                  <dt className="font-semibold text-exito">Ganancia</dt>
+                  <dd className="font-extrabold text-exito">{formatGs(ganancia(pedido.totalVenta, pedido.totalCosto) ?? 0)}</dd>
+                </div>
+              </>
+            )}
           </dl>
         </CardSection>
 
@@ -114,6 +155,16 @@ export function PedidoDetalle({ pedido, acciones, extra }: { pedido: Pedido; acc
         </CardSection>
       </div>
     </div>
+  )
+}
+
+/** Aviso para el delivery cuando el cliente ya le pagó al vendedor (CU-11). */
+export function NoCobrar({ className = '' }: { className?: string }) {
+  return (
+    <p className={`flex items-start gap-2 rounded-lg bg-exito-50 px-3 py-2 text-sm font-semibold text-exito ${className}`}>
+      <Icon name="check" className="mt-0.5 size-4 shrink-0" />
+      No cobrar: el cliente ya le pagó al vendedor.
+    </p>
   )
 }
 

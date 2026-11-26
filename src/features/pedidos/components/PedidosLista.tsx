@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { Card } from '@/components/ui/Card'
 import { Icon } from '@/components/ui/Icon'
 import { formatFecha, formatGs } from '@/lib/format'
+import { codigoPedido } from '../numero'
 import type { Pedido } from '../types'
 import { EstadoBadge } from './EstadoBadge'
 
@@ -25,7 +26,10 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
               <Card className="space-y-3 p-4 transition-colors active:bg-celeste-50">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-bold text-tinta">{pedido.nombreCliente}</p>
+                    <p className="truncate font-bold text-tinta">
+                      <span className="tabular mr-1.5 text-sm font-semibold text-gris">{codigoPedido(pedido)}</span>
+                      {pedido.nombreCliente}
+                    </p>
                     <p className="text-xs text-gris">
                       {formatFecha(pedido.fechaPedido)} · {pedido.zonaNombre}
                       {mostrarVendedor && ` · ${pedido.vendedorNombre}`}
@@ -53,6 +57,7 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
         <table className="w-full text-left text-sm">
           <thead className="bg-celeste-50 text-xs font-semibold tracking-wide text-azul-900 uppercase">
             <tr>
+              <th scope="col" className="px-4 py-3">N.º</th>
               <th scope="col" className="px-4 py-3">Fecha</th>
               <th scope="col" className="px-4 py-3">Cliente</th>
               {mostrarVendedor && <th scope="col" className="px-4 py-3">Vendedor</th>}
@@ -67,6 +72,7 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
           <tbody className="divide-y divide-linea">
             {pedidos.map((pedido) => (
               <tr key={pedido._id} className="group relative transition-colors hover:bg-crema/50">
+                <td className="tabular px-4 py-3 font-semibold whitespace-nowrap text-gris">{codigoPedido(pedido)}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-gris">{formatFecha(pedido.fechaPedido)}</td>
                 <td className="max-w-56 px-4 py-3">
                   <Link to={`${basePath}/${pedido._id}`} className="block truncate font-semibold text-tinta after:absolute after:inset-0 group-hover:text-azul">

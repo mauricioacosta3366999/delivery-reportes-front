@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { makePedido } from '@/test/fixtures'
-import { calcularMontos, pedidoFormDefaults, pedidoFormSchema, pedidoToForm, toCreatePayload, toUpdatePayload, type PedidoFormValues } from './form'
+import { calcularMontos, ganancia, pedidoFormDefaults, pedidoFormSchema, pedidoToForm, toCreatePayload, toUpdatePayload, type PedidoFormValues } from './form'
+
+type Fila = PedidoFormValues['productos'][number]
+const fila = (nombre: string, cantidad: number, precioUnitario: number, extra: Partial<Fila> = {}): Fila => ({
+  nombre,
+  cantidad,
+  precioUnitario,
+  productoId: '',
+  costoUnitario: Number.NaN,
+  ...extra,
+})
 
 function valoresValidos(overrides: Partial<PedidoFormValues> = {}): PedidoFormValues {
   return {
@@ -10,10 +20,7 @@ function valoresValidos(overrides: Partial<PedidoFormValues> = {}): PedidoFormVa
     nombreCliente: '  SR. LIMMO PIPO ',
     contactoCliente: '0981 222 333',
     ubicacionEntrega: { direccion: 'Av. Principal 123, Luque' },
-    productos: [
-      { nombre: 'Remera', cantidad: 2, precioUnitario: 45000 },
-      { nombre: 'Gorra', cantidad: 1, precioUnitario: 29000 },
-    ],
+    productos: [fila('Remera', 2, 45000), fila('Gorra', 1, 29000)],
     ...overrides,
   }
 }
@@ -34,7 +41,7 @@ describe('toCreatePayload', () => {
       ],
       observaciones: 'Llamar antes de llegar',
     })
-    for (const calculado of ['costoDelivery', 'totalVenta', 'montoTotal', 'montoARendir', 'estado', 'vendedorId', 'vendedorNombre']) {
+    for (const calculado of ['costoDelivery', 'totalVenta', 'montoTotal', 'montoARendir', 'estado', 'numero', 'totalCosto', 'vendedorId', 'repartidorId', 'vendedorNombre', 'pagoDirectoVendedor']) {
       expect(payload).not.toHaveProperty(calculado)
     }
   })
@@ -42,6 +49,25 @@ describe('toCreatePayload', () => {
   it('omite los opcionales vacíos (la API es estricta)', () => {
     const payload = toCreatePayload(valoresValidos({ observaciones: '  ' }))
     expect(payload).not.toHaveProperty('observaciones')
+  })
+
+  it('el admin puede elegir el vendedor y el delivery (CU-10, CU-12)', () => {
+    const payload = toCreatePayload(valoresValidos({ vendedorId: '6737a1f0c2b4e8a1d4f00001', repartidorId: '6737a1f0c2b4e8a1d4f00002' }))
+    expect(payload).toMatchObject({ vendedorId: '6737a1f0c2b4e8a1d4f00001', repartidorId: '6737a1f0c2b4e8a1d4f00002' })
+  })
+
+  it('marca el pago directo al vendedor solo si se eligió (CU-11)', () => {
+    expect(toCreatePayload(valoresValidos({ pagoDirectoVendedor: true }))).toMatchObject({ pagoDirectoVendedor: true })
+  })
+
+  it('envía el vínculo al catálogo y el costo solo si están cargados (CU-15)', () => {
+    const payload = toCreatePayload(
+      valoresValidos({ productos: [fila('Remera', 2, 45000, { productoId: '6737d000c2b4e8a1d4f00001', costoUnitario: 30000 }), fila('Gorra', 1, 29000)] }),
+    )
+    expect(payload.productos).toEqual([
+      { nombre: 'Remera', cantidad: 2, precioUnitario: 45000, productoId: '6737d000c2b4e8a1d4f00001', costoUnitario: 30000 },
+      { nombre: 'Gorra', cantidad: 1, precioUnitario: 29000 },
+    ])
   })
 })
 
@@ -60,7 +86,7 @@ describe('entrega con link de Google Maps', () => {
 describe('toUpdatePayload', () => {
   it('envía solo lo que cambió', () => {
     const original = pedidoToForm(makePedido())
-    const editado = { ...original, observaciones: 'Portón azul', productos: [{ nombre: 'Router', cantidad: 3, precioUnitario: 155000 }] }
+    const editado = { ...original, observaciones: 'Portón azul', productos: [fila('Router', 3, 155000)] }
     expect(toUpdatePayload(editado, original)).toEqual({
       observaciones: 'Portón azul',
       productos: [{ nombre: 'Router', cantidad: 3, precioUnitario: 155000 }],
@@ -71,11 +97,33 @@ describe('toUpdatePayload', () => {
     const original = pedidoToForm(makePedido())
     expect(toUpdatePayload({ ...original }, original)).toEqual({})
   })
+
+  it('envía el cambio del pago directo, pero nunca el vendedor ni el delivery', () => {
+    const original = pedidoToForm(makePedido())
+    const editado = { ...original, pagoDirectoVendedor: true, vendedorId: '6737a1f0c2b4e8a1d4f00001', repartidorId: '6737a1f0c2b4e8a1d4f00002' }
+    expect(toUpdatePayload(editado, original)).toEqual({ pagoDirectoVendedor: true })
+  })
+
+  it('conserva el producto del catálogo al editar', () => {
+    const pedido = makePedido({ productos: [{ nombre: 'Router', cantidad: 2, precioUnitario: 155000, productoId: '6737d000c2b4e8a1d4f00001', costoUnitario: 100000 }] })
+    const original = pedidoToForm(pedido)
+    expect(original.productos[0]).toMatchObject({ productoId: '6737d000c2b4e8a1d4f00001', costoUnitario: 100000 })
+    expect(toUpdatePayload({ ...original }, original)).toEqual({})
+  })
 })
 
 describe('pedidoFormSchema', () => {
+  it('acepta un pedido válido con el costo vacío', () => {
+    expect(pedidoFormSchema.safeParse(valoresValidos()).success).toBe(true)
+  })
+
+  it('rechaza un costo con decimales', () => {
+    const result = pedidoFormSchema.safeParse(valoresValidos({ productos: [fila('X', 1, 1000, { costoUnitario: 10.5 })] }))
+    expect(result.error?.issues.map((issue) => issue.path.join('.'))).toContain('productos.0.costoUnitario')
+  })
+
   it('rechaza productos con cantidad 0 o precio vacío', () => {
-    const result = pedidoFormSchema.safeParse(valoresValidos({ productos: [{ nombre: 'X', cantidad: 0, precioUnitario: Number.NaN }] }))
+    const result = pedidoFormSchema.safeParse(valoresValidos({ productos: [fila('X', 0, Number.NaN)] }))
     expect(result.success).toBe(false)
     const paths = result.error?.issues.map((issue) => issue.path.join('.'))
     expect(paths).toContain('productos.0.cantidad')
@@ -96,7 +144,20 @@ describe('calcularMontos', () => {
       costoDelivery: 38000,
       montoTotal: 157000,
       montoARendir: 81000,
+      totalCosto: null,
     })
+  })
+
+  it('con pago directo al vendedor el delivery no cobra y se descuenta el delivery (CU-11)', () => {
+    // Ejemplo de CU-11: venta 50.000 · delivery 25.000.
+    expect(calcularMontos([fila('Remera', 1, 50000)], 25000, true)).toMatchObject({ totalVenta: 50000, montoTotal: 0, montoARendir: -25000 })
+  })
+
+  it('suma el costo de los productos que lo tienen y calcula la ganancia (CU-15)', () => {
+    const montos = calcularMontos([fila('Remera', 2, 45000, { costoUnitario: 30000 }), fila('Gorra', 1, 29000)], 38000)
+    expect(montos.totalCosto).toBe(60000)
+    expect(ganancia(montos.totalVenta, montos.totalCosto)).toBe(59000)
+    expect(ganancia(119000, null)).toBeNull()
   })
 
   it('ignora filas incompletas mientras se escribe', () => {

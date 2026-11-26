@@ -6,6 +6,11 @@ import type { CreatePedidoPayload, Pedido, PedidoFiltros, UpdatePedidoPayload } 
 
 export type Transicion = 'tomar' | 'entregar' | 'cancelar'
 
+/** CU-08/11: el delivery corrige quién cobró al marcarlo entregado. */
+export interface EntregarBody {
+  pagoDirectoVendedor: boolean
+}
+
 /** Traduce los filtros de UI (días calendario) al contrato de la API (ISO con offset, [desde, hasta)). */
 export function toListQuery({ desde, hasta, ...rest }: PedidoFiltros) {
   return {
@@ -20,8 +25,11 @@ export const pedidosApi = {
   get: (id: string) => apiFetch<Pedido>(`/pedidos/${id}`),
   create: (payload: CreatePedidoPayload) => apiFetch<Pedido>('/pedidos', { method: 'POST', body: payload }),
   update: (id: string, payload: UpdatePedidoPayload) => apiFetch<Pedido>(`/pedidos/${id}`, { method: 'PATCH', body: payload }),
-  // Las transiciones no llevan body: el backend rechaza cualquier campo.
-  transicion: (id: string, accion: Transicion) => apiFetch<Pedido>(`/pedidos/${id}/${accion}`, { method: 'POST' }),
+  // Las transiciones no llevan body (el backend rechaza campos), salvo la corrección del pago al entregar.
+  transicion: (id: string, accion: Transicion, body?: EntregarBody) =>
+    apiFetch<Pedido>(`/pedidos/${id}/${accion}`, { method: 'POST', ...(body ? { body } : {}) }),
+  /** CU-12: asignar, cambiar o liberar (`null`) el delivery. Solo ADMIN. */
+  asignar: (id: string, repartidorId: string | null) => apiFetch<Pedido>(`/pedidos/${id}/asignar`, { method: 'POST', body: { repartidorId } }),
 }
 
 export const pedidoKeys = {
@@ -61,11 +69,25 @@ export function useActualizarPedido(id: string) {
   return useMutation({ mutationFn: (payload: UpdatePedidoPayload) => pedidosApi.update(id, payload), onSuccess: sync })
 }
 
+/** CU-12: el 409 significa que el pedido cambió (entregado, cancelado o reasignado en paralelo). */
+export function useAsignarPedido() {
+  const sync = useSyncPedido()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, repartidorId }: { id: string; repartidorId: string | null }) => pedidosApi.asignar(id, repartidorId),
+    onSuccess: sync,
+    onError: (_error, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: pedidoKeys.lists })
+      void queryClient.invalidateQueries({ queryKey: pedidoKeys.detail(id) })
+    },
+  })
+}
+
 export function useTransicionPedido() {
   const sync = useSyncPedido()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, accion }: { id: string; accion: Transicion }) => pedidosApi.transicion(id, accion),
+    mutationFn: ({ id, accion, body }: { id: string; accion: Transicion; body?: EntregarBody }) => pedidosApi.transicion(id, accion, body),
     onSuccess: sync,
     // Un 409 significa que el pedido cambió: refrescar para mostrar el estado real.
     onError: (_error, { id }) => {
