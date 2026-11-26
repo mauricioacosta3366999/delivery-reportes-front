@@ -7,6 +7,7 @@ import { useUsuariosPorRol } from '@/features/usuarios/api'
 import { ApiError, getErrorMessage } from '@/lib/api/client'
 import { usePedido } from '../api'
 import { AccionesPedido } from '../components/AccionesPedido'
+import { BoletaSection } from '../components/Boleta'
 import { PedidoDetalle, TelLink } from '../components/PedidoDetalle'
 import { codigoPedido } from '../numero'
 
@@ -54,19 +55,22 @@ export function PedidoDetallePage({ basePath, backLabel }: Props) {
         pedido={pedido}
         acciones={<AccionesPedido pedido={pedido} usuario={usuario} editarPath={`${basePath}/${pedido._id}/editar`} />}
         extra={
-          esAdmin && repartidor ? (
-            <CardSection title="Delivery">
-              <DataList
-                items={[
-                  { label: 'Nombre', value: `${repartidor.nombre}${repartidor.activo ? '' : ' (inactivo)'}` },
-                  { label: 'Contacto', value: repartidor.contacto ? <TelLink contacto={repartidor.contacto} /> : '—' },
-                  ...(pedido.estado === 'INICIADO'
-                    ? [{ label: 'Estado', value: pedido.asignadoPor === 'ZONA' ? 'Asignado por la zona, todavía sin retirar' : 'Asignado por un admin, todavía sin retirar' }]
-                    : []),
-                ]}
-              />
-            </CardSection>
-          ) : undefined
+          <>
+            {esAdmin && repartidor && (
+              <CardSection title="Delivery">
+                <DataList
+                  items={[
+                    { label: 'Nombre', value: `${repartidor.nombre}${repartidor.activo ? '' : ' (inactivo)'}` },
+                    { label: 'Contacto', value: repartidor.contacto ? <TelLink contacto={repartidor.contacto} /> : '—' },
+                    ...(pedido.estado === 'INICIADO'
+                      ? [{ label: 'Estado', value: pedido.asignadoPor === 'ZONA' ? 'Asignado por la zona, todavía sin retirar' : 'Asignado por un admin, todavía sin retirar' }]
+                      : []),
+                  ]}
+                />
+              </CardSection>
+            )}
+            <BoletaSection pedido={pedido} usuario={usuario} />
+          </>
         }
       />
     </>

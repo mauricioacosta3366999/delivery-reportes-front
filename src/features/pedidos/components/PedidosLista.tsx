@@ -4,6 +4,7 @@ import { cn } from '@/components/ui/cn'
 import { Icon } from '@/components/ui/Icon'
 import { formatFecha, formatGs } from '@/lib/format'
 import { codigoPedido } from '../numero'
+import { VerBoletaButton } from './Boleta'
 import type { Pedido } from '../types'
 import { EstadoBadge } from './EstadoBadge'
 
@@ -56,6 +57,11 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
                 )}
               </Card>
             </Link>
+            {pedido.boleta && (
+              <div className="mt-1 flex justify-center">
+                <VerBoletaButton pedido={pedido} variant="link" />
+              </div>
+            )}
             {onAsignar && puedeAsignarse(pedido) && (
               <button
                 type="button"
@@ -110,7 +116,10 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
                 <td className={cn('tabular px-4 py-3 text-right whitespace-nowrap', compacta && 'hidden xl:table-cell')}>{formatGs(pedido.costoDelivery)}</td>
                 <td className="tabular px-4 py-3 text-right font-semibold whitespace-nowrap text-cafe">{formatGs(pedido.montoARendir)}</td>
                 <td className="px-4 py-3">
-                  <EstadoBadge pedido={pedido} />
+                  <span className="flex flex-wrap items-center gap-1">
+                    <EstadoBadge pedido={pedido} />
+                    <VerBoletaButton pedido={pedido} variant="link" />
+                  </span>
                 </td>
                 {onAsignar && (
                   <td className="px-2 py-2 text-right">

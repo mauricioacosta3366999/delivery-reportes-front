@@ -5,6 +5,7 @@ import { Icon } from '@/components/ui/Icon'
 import { codigoPedido } from '@/features/pedidos/numero'
 import { accionesDisponibles, estaAsignado } from '@/features/pedidos/permisos'
 import { EstadoBadge } from '@/features/pedidos/components/EstadoBadge'
+import { SubirBoletaButton, VerBoletaButton } from '@/features/pedidos/components/Boleta'
 import { NoCobrar, TelLink, UbicacionLink } from '@/features/pedidos/components/PedidoDetalle'
 import type { Pedido } from '@/features/pedidos/types'
 import type { Usuario } from '@/features/usuarios/types'
@@ -100,6 +101,16 @@ export function EntregaCard({ pedido, usuario, onAccion, cargando }: Props) {
           <Button block size="lg" variant="accent" loading={cargando} onClick={() => onAccion('entregar')}>
             <Icon name="check" /> Marcar como entregado
           </Button>
+        )}
+        {puede.subirBoleta && (
+          <div className="space-y-2 rounded-xl bg-cafe-50/60 p-3">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-cafe">
+              <Icon name="truck" className="size-4" />
+              {pedido.boleta ? 'Boleta de depósito subida' : 'Falta la boleta de la transportadora'}
+            </p>
+            <VerBoletaButton pedido={pedido} />
+            <SubirBoletaButton pedido={pedido} block />
+          </div>
         )}
         {pedido.estado === 'ENTREGADO' && <p className="text-center text-xs text-gris">Entregado el {formatFechaHora(pedido.entregadoAt)}</p>}
       </div>

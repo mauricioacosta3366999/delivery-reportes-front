@@ -19,5 +19,10 @@ export function accionesDisponibles(pedido: Pedido, usuario: Usuario) {
     tomar: iniciado && rol === 'REPARTIDOR' && (!pedido.repartidorId || esMio),
     entregar: pedido.estado === 'TOMADO' && (rol === 'ADMIN' || (rol === 'REPARTIDOR' && esMio)),
     asignar: rol === 'ADMIN' && (pedido.estado === 'INICIADO' || pedido.estado === 'TOMADO'),
+    // CU-17: solo en zonas con transportadora, con el pedido tomado o entregado, por su delivery o un admin.
+    subirBoleta:
+      pedido.zonaRequiereTransportadora &&
+      (pedido.estado === 'TOMADO' || pedido.estado === 'ENTREGADO') &&
+      (rol === 'ADMIN' || (rol === 'REPARTIDOR' && esMio)),
   }
 }

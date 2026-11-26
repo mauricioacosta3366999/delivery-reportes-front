@@ -404,3 +404,84 @@ describe('catálogo de productos (CU-15)', () => {
     expect(body).not.toHaveProperty('vendedorId')
   })
 })
+
+describe('boleta de depósito (CU-17)', () => {
+  const delivery = makeUsuario('REPARTIDOR')
+  const KEY = 'pedidos/6737c000c2b4e8a1d4f00101/boleta-3f2b8c1e-9a4d-4e7b-b1c2-5d6e7f8a9b0c.pdf'
+  const R2 = 'https://boletas.r2.test/pedidos/6737c000c2b4e8a1d4f00101/boleta.pdf'
+
+  it('el delivery sube la boleta: pide URL, la sube directo a R2 y confirma la key', async () => {
+    const tomado = makePedido({ estado: 'TOMADO', repartidorId: delivery._id, tomadoAt: '2026-11-26T14:00:00.000Z' })
+    const llamadas: string[] = []
+    let pedirBody: unknown
+    let putHeaders: Headers | undefined
+    let confirmarBody: unknown
+    server.use(
+      http.get(`${API}/pedidos/:id`, () => HttpResponse.json(tomado)),
+      http.post(`${API}/pedidos/:id/boleta/url-subida`, async ({ request }) => {
+        llamadas.push('url')
+        pedirBody = await request.json()
+        return HttpResponse.json(
+          { url: R2, key: KEY, metodo: 'PUT', headers: { 'Content-Type': 'application/pdf' }, expiraEn: '2026-11-26T18:05:00.000Z' },
+          { status: 201 },
+        )
+      }),
+      http.put(R2, ({ request }) => {
+        llamadas.push('put')
+        putHeaders = request.headers
+        return new HttpResponse(null, { status: 200 })
+      }),
+      http.patch(`${API}/pedidos/:id/boleta`, async ({ request }) => {
+        llamadas.push('confirmar')
+        confirmarBody = await request.json()
+        return HttpResponse.json({
+          ...tomado,
+          boleta: { key: KEY, contentType: 'application/pdf', tamano: 4, subidaAt: '2026-11-26T18:01:12.000Z', subidaPor: delivery._id },
+        })
+      }),
+    )
+    const { user, container } = renderApp(`/entregas/${tomado._id}`, { usuario: delivery })
+
+    expect(await screen.findByRole('heading', { name: 'Boleta de depósito' })).toBeInTheDocument()
+    const archivo = new File(['%PDF'], 'boleta.pdf', { type: 'application/pdf' })
+    await user.upload(container.querySelector<HTMLInputElement>('input[type="file"]')!, archivo)
+
+    expect(await screen.findByText('Boleta del pedido #58 subida.')).toBeInTheDocument()
+    expect(llamadas).toEqual(['url', 'put', 'confirmar'])
+    expect(pedirBody).toEqual({ contentType: 'application/pdf', tamano: 4 })
+    // Directo a R2: con el Content-Type firmado y sin el token de la API.
+    expect(putHeaders?.get('content-type')).toBe('application/pdf')
+    expect(putHeaders?.get('authorization')).toBeNull()
+    expect(confirmarBody).toEqual({ key: KEY })
+    expect(screen.getByRole('button', { name: /Reemplazar boleta/ })).toBeInTheDocument()
+  })
+
+  it('el vendedor ve la boleta con una URL firmada', async () => {
+    const entregado = makePedido({
+      estado: 'ENTREGADO',
+      repartidorId: delivery._id,
+      boleta: { key: KEY.replace('.pdf', '.jpg'), contentType: 'image/jpeg', tamano: 284512, subidaAt: '2026-11-26T18:01:12.000Z', subidaPor: delivery._id },
+    })
+    server.use(
+      http.get(`${API}/pedidos/:id/boleta`, () =>
+        HttpResponse.json({ url: 'https://boletas.r2.test/firmada.jpg', contentType: 'image/jpeg', expiraEn: '2026-11-26T18:10:00.000Z' }),
+      ),
+      http.get(`${API}/pedidos/:id`, () => HttpResponse.json(entregado)),
+    )
+    const { user } = renderApp(`/pedidos/${entregado._id}`, { usuario: makeUsuario('VENDEDOR') })
+
+    await user.click(await screen.findByRole('button', { name: 'Ver boleta' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByRole('img', { name: /Boleta de depósito del pedido #58/ })).toHaveAttribute('src', 'https://boletas.r2.test/firmada.jpg')
+    // El vendedor no puede subirla.
+    expect(screen.queryByRole('button', { name: /Subir boleta|Reemplazar boleta/ })).not.toBeInTheDocument()
+  })
+
+  it('en una zona sin transportadora no aparece la boleta', async () => {
+    const pedido = makePedido({ estado: 'TOMADO', repartidorId: delivery._id, zonaRequiereTransportadora: false })
+    server.use(http.get(`${API}/pedidos/:id`, () => HttpResponse.json(pedido)))
+    renderApp(`/entregas/${pedido._id}`, { usuario: delivery })
+    expect(await screen.findByRole('button', { name: /Marcar como entregado/ })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Boleta de depósito' })).not.toBeInTheDocument()
+  })
+})

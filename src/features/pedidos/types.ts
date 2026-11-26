@@ -29,6 +29,15 @@ export interface Producto {
   costoUnitario?: number
 }
 
+/** Boleta de depósito de la transportadora (CU-17), guardada en R2 y leída con URL firmada. */
+export interface Boleta {
+  key: string
+  contentType: string
+  tamano: number
+  subidaAt: string
+  subidaPor: string
+}
+
 /** Quién dejó el pedido asignado mientras sigue INICIADO (CU-12/13). */
 export type AsignadoPor = 'ADMIN' | 'ZONA' | null
 
@@ -63,6 +72,8 @@ export interface Pedido {
   tomadoAt: string | null
   entregadoAt: string | null
   canceladoAt: string | null
+  /** null (o ausente en pedidos viejos) mientras no se subió. */
+  boleta?: Boleta | null
   createdAt: string
   updatedAt: string
 }
