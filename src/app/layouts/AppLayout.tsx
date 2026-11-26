@@ -40,7 +40,7 @@ export function AppLayout() {
       <a href="#contenido" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2">
         Saltar al contenido
       </a>
-      <header className="sticky top-0 z-30 border-b border-linea bg-crema/85 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-linea bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
           <Brand />
           <nav aria-label="Principal" className="hidden flex-1 items-center gap-1 md:flex">
@@ -52,7 +52,7 @@ export function AppLayout() {
                 className={({ isActive }) =>
                   cn(
                     'flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors',
-                    isActive ? 'bg-white text-azul shadow-suave ring-1 ring-linea' : 'text-gris hover:text-azul',
+                    isActive ? 'bg-naranja-50 text-naranja-700' : 'text-gris hover:text-naranja-700',
                   )
                 }
               >
@@ -76,7 +76,7 @@ export function AppLayout() {
               type="button"
               onClick={logout}
               aria-label="Cerrar sesión"
-              className="flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-gris transition-colors hover:bg-white hover:text-cafe"
+              className="flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-gris transition-colors hover:bg-crema hover:text-cafe"
             >
               <Icon name="logout" className="size-4" />
               <span className="hidden sm:inline">Salir</span>
@@ -101,13 +101,13 @@ export function AppLayout() {
                 className={({ isActive }) =>
                   cn(
                     'flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors',
-                    isActive ? 'text-azul' : 'text-gris',
+                    isActive ? 'text-naranja-700' : 'text-gris',
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <span className={cn('grid h-7 w-12 place-items-center rounded-full transition-colors', isActive && 'bg-celeste-50')}>
+                    <span className={cn('grid h-7 w-12 place-items-center rounded-full transition-colors', isActive && 'bg-naranja-50')}>
                       <Icon name={item.icon} />
                     </span>
                     {item.label}

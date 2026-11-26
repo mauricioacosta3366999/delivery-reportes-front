@@ -17,6 +17,12 @@
   --color-cafe-700: #643f25;
   --color-cafe-50: #f6ebe3;
 
+  /* Acción principal: botones, pestaña y navegación activas (blanco sobre naranja ≈ 4,6:1, AA). */
+  --color-naranja: #c94f0a;
+  --color-naranja-700: #a8420a;
+  --color-naranja-900: #8a3608;
+  --color-naranja-50: #fdf0e8;
+
   /* Neutrales */
   --color-tinta: #1f2a33;
   --color-gris: #5d6873;
@@ -39,7 +45,7 @@
   }
 
   body {
-    @apply bg-crema font-sans text-tinta antialiased;
+    @apply bg-white font-sans text-tinta antialiased;
     min-height: 100dvh;
   }
 

@@ -32,7 +32,7 @@ export function Tabs<T extends string>({ value, onChange, items, label }: TabsPr
             onClick={() => onChange(item.value)}
             className={cn(
               'min-h-11 flex-1 rounded-xl px-3 text-sm font-semibold transition-colors',
-              selected ? 'bg-azul text-white shadow-sm' : 'text-gris hover:bg-celeste-50 hover:text-azul',
+              selected ? 'bg-naranja text-white shadow-sm' : 'text-gris hover:bg-celeste-50 hover:text-azul',
             )}
           >
             {item.label}
