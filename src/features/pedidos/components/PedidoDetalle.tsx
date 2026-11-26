@@ -121,9 +121,14 @@ export function PedidoDetalle({ pedido, acciones, extra }: { pedido: Pedido; acc
               <dd className="font-extrabold text-azul-900">{formatGs(pedido.montoTotal)}</dd>
             </div>
             {pedido.pagoDirectoVendedor && <NoCobrar />}
-            <div className="flex justify-between gap-3 rounded-lg bg-cafe-50 px-3 py-2">
-              <dt className="font-semibold text-cafe">A rendir</dt>
-              <dd className="font-extrabold text-cafe">{formatGs(pedido.montoARendir)}</dd>
+            <div className="rounded-lg bg-cafe-50 px-3 py-2">
+              <div className="flex justify-between gap-3">
+                <dt className="font-semibold text-cafe">A rendir</dt>
+                <dd className="font-extrabold text-cafe">{formatGs(pedido.montoARendir)}</dd>
+              </div>
+              <p className="mt-0.5 text-xs text-cafe/80">
+                {pedido.pagoDirectoVendedor ? '= − delivery (el vendedor ya cobró la venta)' : '= venta de productos − delivery'}
+              </p>
             </div>
             {pedido.totalCosto !== null && pedido.totalCosto !== undefined && (
               <>

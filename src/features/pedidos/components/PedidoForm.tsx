@@ -297,6 +297,10 @@ function ProductosSection({
         </Button>
       }
     >
+      <p className="mb-3 text-xs text-gris">
+        <strong className="font-semibold text-tinta">Precio de venta:</strong> lo que paga el cliente por unidad.{' '}
+        <strong className="font-semibold text-tinta">Costo:</strong> lo que te cuesta a vos por unidad; es opcional, solo sirve para calcular la ganancia y el delivery no lo ve.
+      </p>
       <ul className="space-y-3">
         {fields.map((field, index) => {
           const fila = errors.productos?.[index]
@@ -345,7 +349,7 @@ function ProductosSection({
                   control={control}
                   name={`productos.${index}.precioUnitario`}
                   render={({ field: precio, fieldState }) => (
-                    <Field label="Precio unitario" error={fieldState.error?.message}>
+                    <Field label="Precio de venta" error={fieldState.error?.message}>
                       {(a11y) => <MoneyInput {...a11y} ref={precio.ref} name={precio.name} value={precio.value} onChange={precio.onChange} onBlur={precio.onBlur} />}
                     </Field>
                   )}
@@ -354,7 +358,7 @@ function ProductosSection({
                   control={control}
                   name={`productos.${index}.costoUnitario`}
                   render={({ field: costo, fieldState }) => (
-                    <Field label="Costo unitario" optional error={fieldState.error?.message} className="col-span-2 sm:col-span-1">
+                    <Field label="Costo" optional error={fieldState.error?.message} className="col-span-2 sm:col-span-1">
                       {(a11y) => <MoneyInput {...a11y} ref={costo.ref} name={costo.name} value={costo.value} onChange={costo.onChange} onBlur={costo.onBlur} />}
                     </Field>
                   )}
@@ -445,9 +449,14 @@ function ResumenMontos({ control, opciones, zonaActual }: { control: Control<Ped
           <dd className="font-extrabold text-azul-900">{formatGs(montos.montoTotal)}</dd>
         </div>
         {pagoDirecto && <p className="text-xs text-gris">El cliente ya le pagó al vendedor: el delivery no cobra nada.</p>}
-        <div className="flex justify-between gap-3 rounded-lg bg-cafe-50 px-3 py-2">
-          <dt className="font-semibold text-cafe">A rendir</dt>
-          <dd className="font-extrabold text-cafe">{formatGs(montos.montoARendir)}</dd>
+        <div className="rounded-lg bg-cafe-50 px-3 py-2">
+          <div className="flex justify-between gap-3">
+            <dt className="font-semibold text-cafe">A rendir</dt>
+            <dd className="font-extrabold text-cafe">{formatGs(montos.montoARendir)}</dd>
+          </div>
+          <p className="mt-0.5 text-xs text-cafe/80">
+            {pagoDirecto ? '= − delivery (el vendedor ya cobró la venta)' : '= venta de productos − delivery'}
+          </p>
         </div>
         {montos.totalCosto !== null && gananciaVendedor !== null && (
           <>

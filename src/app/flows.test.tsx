@@ -96,7 +96,7 @@ describe('vendedor crea un pedido (CU-03)', () => {
     const cantidad = screen.getByLabelText('Cantidad')
     await user.clear(cantidad)
     await user.type(cantidad, '2')
-    await user.type(screen.getByLabelText('Precio unitario'), '45000')
+    await user.type(screen.getByLabelText('Precio de venta'), '45000')
     await user.type(screen.getByLabelText(/Entrega: dirección o link/), 'https://www.google.com/maps/@-25.3,-57.6,17z')
     expect(screen.getByText(/Link de Google Maps detectado/)).toBeInTheDocument()
 
@@ -385,7 +385,7 @@ describe('catálogo de productos (CU-15)', () => {
     await user.selectOptions(screen.getByLabelText('Zona de entrega'), zona._id)
     await user.type(screen.getByRole('combobox', { name: 'Producto 1' }), 'Rem')
     await user.click(await screen.findByRole('option', { name: /Remera/ }))
-    expect(screen.getByLabelText('Precio unitario')).toHaveValue('45.000')
+    expect(screen.getByLabelText('Precio de venta')).toHaveValue('45.000')
     expect(screen.getByText('Del catálogo')).toBeInTheDocument()
     const resumen = screen.getByText('Resumen').closest('div')!.parentElement!
     expect(within(resumen).getByText('Ganancia')).toBeInTheDocument()
