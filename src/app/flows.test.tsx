@@ -328,3 +328,57 @@ describe('pantalla Deliverys (CU-14)', () => {
     expect(screen.getByRole('link', { name: 'Ver 2 pedidos sin asignar' })).toHaveAttribute('href', '/admin/pedidos?activos=true&sinAsignar=true')
   })
 })
+
+describe('catálogo de productos (CU-15)', () => {
+  it('elegir un producto del catálogo completa precio y costo y muestra la ganancia', async () => {
+    const zona = makeZona({ _id: '6737b000c2b4e8a1d4f00010', nombre: 'Luque', costoDelivery: 38000, requiereTransportadora: false })
+    const remera = {
+      _id: '6737d000c2b4e8a1d4f00001',
+      vendedorId: makeUsuario('VENDEDOR')._id,
+      nombre: 'Remera',
+      precioVenta: 45000,
+      costo: 30000,
+      activo: true,
+      createdAt: '2026-11-24T14:00:00.000Z',
+      updatedAt: '2026-11-24T14:00:00.000Z',
+    }
+    let body: Record<string, unknown> | undefined
+    server.use(
+      http.get(`${API}/zonas`, () => HttpResponse.json(paginated([zona]))),
+      http.get(`${API}/productos`, ({ request }) => {
+        const params = new URL(request.url).searchParams
+        expect(params.get('activo')).toBe('true')
+        return HttpResponse.json(paginated([remera]))
+      }),
+      http.post(`${API}/pedidos`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json(makePedido({ _id: '6737c000c2b4e8a1d4f00300', numero: 62 }), { status: 201 })
+      }),
+      http.get(`${API}/pedidos/:id`, () => HttpResponse.json(makePedido({ _id: '6737c000c2b4e8a1d4f00300', numero: 62 }))),
+    )
+    const { user } = renderApp('/pedidos/nuevo', { usuario: makeUsuario('VENDEDOR') })
+
+    await user.type(await screen.findByLabelText('Nombre del cliente'), 'SR. LIMMO PIPO')
+    await user.type(screen.getByLabelText('Contacto'), '0981 222 333')
+    await user.selectOptions(screen.getByLabelText('Zona de entrega'), zona._id)
+    await user.type(screen.getByRole('combobox', { name: 'Producto 1' }), 'Rem')
+    await user.click(await screen.findByRole('option', { name: /Remera/ }))
+    expect(screen.getByLabelText('Precio unitario')).toHaveValue('45.000')
+    expect(screen.getByText('Del catálogo')).toBeInTheDocument()
+    const resumen = screen.getByText('Resumen').closest('div')!.parentElement!
+    expect(within(resumen).getByText('Ganancia')).toBeInTheDocument()
+    expect(within(resumen).getByText('15.000 Gs')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/Entrega: dirección o link/), 'Av. Principal 123, Luque')
+    await user.click(screen.getByLabelText(/El cliente ya le pagó al vendedor/))
+    expect(within(resumen).getByText('-38.000 Gs')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Crear pedido' }))
+
+    expect(await screen.findByText(/Pedido #62 creado/)).toBeInTheDocument()
+    expect(body).toMatchObject({
+      productos: [{ nombre: 'Remera', cantidad: 1, precioUnitario: 45000, productoId: remera._id, costoUnitario: 30000 }],
+      pagoDirectoVendedor: true,
+    })
+    expect(body).not.toHaveProperty('vendedorId')
+  })
+})

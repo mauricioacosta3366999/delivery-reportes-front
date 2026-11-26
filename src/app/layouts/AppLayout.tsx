@@ -16,6 +16,7 @@ const navPorRol: Record<Rol, NavItem[]> = {
   VENDEDOR: [
     { to: '/pedidos', label: 'Mis pedidos', icon: 'box', end: true },
     { to: '/pedidos/nuevo', label: 'Nuevo', icon: 'plus' },
+    { to: '/productos', label: 'Productos', icon: 'tag' },
     { to: '/reportes', label: 'Reportes', icon: 'file' },
   ],
   REPARTIDOR: [
@@ -26,6 +27,7 @@ const navPorRol: Record<Rol, NavItem[]> = {
     { to: '/admin/pedidos', label: 'Pedidos', icon: 'box' },
     { to: '/admin/deliverys', label: 'Deliverys', icon: 'truck' },
     { to: '/admin/zonas', label: 'Zonas', icon: 'map' },
+    { to: '/admin/productos', label: 'Productos', icon: 'tag' },
     { to: '/admin/usuarios', label: 'Usuarios', icon: 'users' },
     { to: '/reportes', label: 'Reportes', icon: 'file' },
   ],

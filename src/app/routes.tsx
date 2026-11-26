@@ -44,6 +44,7 @@ export const routes: RouteObject[] = [
                   { path: '/pedidos/nuevo', lazy: async () => ({ Component: (await pedidos()).NuevoPedido }) },
                   { path: '/pedidos/:id', lazy: async () => ({ Component: (await pedidos()).DetallePedido }) },
                   { path: '/pedidos/:id/editar', lazy: async () => ({ Component: (await pedidos()).EditarPedido }) },
+                  { path: '/productos', lazy: async () => ({ Component: (await pedidos()).Productos }) },
                 ],
               },
               {
@@ -62,6 +63,7 @@ export const routes: RouteObject[] = [
                   { path: '/admin/pedidos/:id/editar', lazy: async () => ({ Component: (await admin()).AdminEditarPedido }) },
                   { path: '/admin/deliverys', lazy: async () => ({ Component: (await admin()).Deliverys }) },
                   { path: '/admin/zonas', lazy: async () => ({ Component: (await admin()).Zonas }) },
+                  { path: '/admin/productos', lazy: async () => ({ Component: (await admin()).Productos }) },
                   { path: '/admin/usuarios', lazy: async () => ({ Component: (await admin()).Usuarios }) },
                 ],
               },

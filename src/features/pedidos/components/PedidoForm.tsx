@@ -1,12 +1,23 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState, type ReactNode } from 'react'
-import { Controller, useFieldArray, useForm, useWatch, type Control, type UseFormRegister, type FieldErrors } from 'react-hook-form'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  useWatch,
+  type Control,
+  type FieldErrors,
+  type UseFormGetValues,
+  type UseFormRegister,
+  type UseFormSetValue,
+} from 'react-hook-form'
 import { Button } from '@/components/ui/Button'
 import { Card, CardSection } from '@/components/ui/Card'
 import { Checkbox, Field, FormError, Input, Select, Textarea } from '@/components/ui/Field'
 import { Icon } from '@/components/ui/Icon'
 import { MoneyInput } from '@/components/ui/MoneyInput'
 import { PageLoader } from '@/components/ui/Spinner'
+import { useUsuario } from '@/features/auth/useAuth'
 import type { Usuario } from '@/features/usuarios/types'
 import { useZonasActivas, type Zona } from '@/features/zonas/api'
 import { ApiError } from '@/lib/api/client'
@@ -14,6 +25,7 @@ import { applyApiErrors } from '@/lib/api/errors'
 import { formatGs } from '@/lib/format'
 import { CAMPOS_PEDIDO, calcularMontos, ganancia, pedidoFormSchema, productoVacio, type PedidoFormValues } from '../form'
 import { enlaceMapa, normalizarEntrega, UBICACION_RETIRO } from '../ubicacion'
+import { ProductoCombobox } from './ProductoCombobox'
 
 /** Zona histórica del pedido en edición (puede estar inactiva y conserva su tarifa). */
 export interface ZonaActual {
@@ -49,12 +61,15 @@ const erroresDeCampo: Array<[RegExp, 'vendedorId' | 'repartidorId']> = [
 
 export function PedidoForm({ defaultValues, zonaActual, submitLabel, onSubmit, onCancel, emptyZonas, admin }: PedidoFormProps) {
   const zonas = useZonasActivas()
+  const usuario = useUsuario()
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
     control,
     handleSubmit,
     setError,
+    setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<PedidoFormValues>({ resolver: zodResolver(pedidoFormSchema), defaultValues, mode: 'onTouched' })
 
@@ -127,7 +142,15 @@ export function PedidoForm({ defaultValues, zonaActual, submitLabel, onSubmit, o
           </div>
         </CardSection>
 
-        <ProductosSection control={control} register={register} errors={errors} />
+        <ProductosSection
+          control={control}
+          register={register}
+          errors={errors}
+          setValue={setValue}
+          getValues={getValues}
+          // El vendedor usa su catálogo; el admin, el del vendedor elegido (con "Yo" no hay catálogo).
+          catalogo={usuario.rol === 'VENDEDOR' ? 'propio' : admin ? 'del-vendedor-elegido' : 'ninguno'}
+        />
 
         <CardSection title="Ubicaciones">
           <div className="space-y-5">
@@ -234,9 +257,36 @@ function AvisoTransportadora({ control, opciones }: { control: Control<PedidoFor
   )
 }
 
-function ProductosSection({ control, register, errors }: { control: Control<PedidoFormValues>; register: UseFormRegister<PedidoFormValues>; errors: FieldErrors<PedidoFormValues> }) {
+type Catalogo = 'propio' | 'del-vendedor-elegido' | 'ninguno'
+
+function ProductosSection({
+  control,
+  register,
+  errors,
+  setValue,
+  getValues,
+  catalogo,
+}: {
+  control: Control<PedidoFormValues>
+  register: UseFormRegister<PedidoFormValues>
+  errors: FieldErrors<PedidoFormValues>
+  setValue: UseFormSetValue<PedidoFormValues>
+  getValues: UseFormGetValues<PedidoFormValues>
+  catalogo: Catalogo
+}) {
   const { fields, append, remove } = useFieldArray({ control, name: 'productos' })
-  const productos = useWatch({ control, name: 'productos' })
+  const [productos, vendedorId] = useWatch({ control, name: ['productos', 'vendedorId'] })
+  const habilitado = catalogo === 'propio' || (catalogo === 'del-vendedor-elegido' && Boolean(vendedorId))
+
+  // Si el admin cambia de vendedor, los productos elegidos del catálogo anterior dejan de valer.
+  const vendedorPrevio = useRef(vendedorId)
+  useEffect(() => {
+    if (vendedorPrevio.current === vendedorId) return
+    vendedorPrevio.current = vendedorId
+    getValues('productos').forEach((item, index) => {
+      if (item.productoId) setValue(`productos.${index}.productoId`, '', { shouldDirty: true })
+    })
+  }, [vendedorId, getValues, setValue])
 
   return (
     <CardSection
@@ -254,10 +304,38 @@ function ProductosSection({ control, register, errors }: { control: Control<Pedi
           const subtotal = item && Number.isFinite(item.cantidad) && Number.isFinite(item.precioUnitario) ? item.cantidad * item.precioUnitario : null
           return (
             <li key={field.id} className="rounded-xl border border-linea bg-crema/40 p-3">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_96px_150px]">
-                <Field label={`Producto ${index + 1}`} error={fila?.nombre?.message} className="col-span-2 sm:col-span-1">
-                  {(a11y) => <Input {...a11y} placeholder="Ej.: Remera" {...register(`productos.${index}.nombre`)} />}
-                </Field>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_88px_140px_140px]">
+                <Controller
+                  control={control}
+                  name={`productos.${index}.nombre`}
+                  render={({ field: nombre }) => (
+                    <Field label={`Producto ${index + 1}`} error={fila?.nombre?.message} className="col-span-2 sm:col-span-1">
+                      {(a11y) => (
+                        <ProductoCombobox
+                          a11y={a11y}
+                          ref={nombre.ref}
+                          name={nombre.name}
+                          value={nombre.value}
+                          onBlur={nombre.onBlur}
+                          habilitado={habilitado}
+                          vendedorId={catalogo === 'del-vendedor-elegido' ? vendedorId : undefined}
+                          onChange={(valor) => {
+                            nombre.onChange(valor)
+                            // Cambiar el nombre de uno del catálogo lo desvincula (precio y costo quedan).
+                            if (getValues(`productos.${index}.productoId`)) setValue(`productos.${index}.productoId`, '', { shouldDirty: true })
+                          }}
+                          onElegir={(producto) => {
+                            const opciones = { shouldDirty: true, shouldValidate: true }
+                            nombre.onChange(producto.nombre)
+                            setValue(`productos.${index}.productoId`, producto._id, opciones)
+                            setValue(`productos.${index}.precioUnitario`, producto.precioVenta, opciones)
+                            setValue(`productos.${index}.costoUnitario`, producto.costo, opciones)
+                          }}
+                        />
+                      )}
+                    </Field>
+                  )}
+                />
                 <Field label="Cantidad" error={fila?.cantidad?.message}>
                   {(a11y) => (
                     <Input {...a11y} type="number" inputMode="numeric" min={1} step={1} className="tabular" {...register(`productos.${index}.cantidad`, { valueAsNumber: true })} />
@@ -272,10 +350,24 @@ function ProductosSection({ control, register, errors }: { control: Control<Pedi
                     </Field>
                   )}
                 />
+                <Controller
+                  control={control}
+                  name={`productos.${index}.costoUnitario`}
+                  render={({ field: costo, fieldState }) => (
+                    <Field label="Costo unitario" optional error={fieldState.error?.message} className="col-span-2 sm:col-span-1">
+                      {(a11y) => <MoneyInput {...a11y} ref={costo.ref} name={costo.name} value={costo.value} onChange={costo.onChange} onBlur={costo.onBlur} />}
+                    </Field>
+                  )}
+                />
               </div>
-              <div className="mt-2 flex items-center justify-between text-sm">
-                <span className="text-gris">
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="flex flex-wrap items-center gap-2 text-gris">
                   Subtotal: <span className="tabular font-semibold text-tinta">{subtotal === null ? '—' : formatGs(subtotal)}</span>
+                  {item?.productoId && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-naranja-50 px-2 py-0.5 text-xs font-semibold text-naranja-700">
+                      <Icon name="tag" className="size-3.5" /> Del catálogo
+                    </span>
+                  )}
                 </span>
                 {fields.length > 1 && (
                   <button

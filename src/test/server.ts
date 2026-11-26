@@ -11,6 +11,8 @@ const defaults = [
     const usuario = sessionStore.get().session?.usuario
     return usuario ? HttpResponse.json(usuario) : HttpResponse.json({ error: 'Autenticación requerida' }, { status: 401 })
   }),
+  // El buscador del catálogo consulta mientras se escribe un producto: catálogo vacío por defecto.
+  http.get(`${API}/productos`, () => HttpResponse.json({ datos: [], total: 0, pagina: 1, limite: 8 })),
 ]
 
 /** Servidor MSW compartido; cada test agrega sus handlers con server.use(...). */
