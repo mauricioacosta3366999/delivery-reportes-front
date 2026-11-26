@@ -82,6 +82,15 @@ por la zona; sigue siendo INICIADO) → **Tomado** → **Entregado** (o **Cancel
 lo tomó). El admin puede reasignar o liberar un pedido tomado. Las etiquetas visibles están en
 `src/features/pedidos/types.ts` (`estadoLabels`); "Asignado" lo arma `EstadoBadge`.
 
+## Marca
+
+El logo de Ato Logística está en `public/`, con fondo transparente:
+
+- `logo-ato-256.webp` (encabezado) y `logo-ato-512.webp` (login y registro);
+- `logo-ato.png` (512 × 512), el mismo logo en PNG para usar fuera del front, por ejemplo en el PDF o el Excel del backend;
+- `favicon.svg`, un ícono vectorial simplificado (pin con "A") que se lee a 16 px;
+- `apple-touch-icon.png` (180 × 180, fondo blanco).
+
 ## Estructura
 
 ```
