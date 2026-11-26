@@ -29,7 +29,33 @@ export const pedidosApi = {
   transicion: (id: string, accion: Transicion, body?: EntregarBody) =>
     apiFetch<Pedido>(`/pedidos/${id}/${accion}`, { method: 'POST', ...(body ? { body } : {}) }),
   /** CU-12: asignar, cambiar o liberar (`null`) el delivery. Solo ADMIN. */
+  resumenDeliverys: () => apiFetch<ResumenDeliverys>('/pedidos/resumen-deliverys'),
   asignar: (id: string, repartidorId: string | null) => apiFetch<Pedido>(`/pedidos/${id}/asignar`, { method: 'POST', body: { repartidorId } }),
+}
+
+/** Carga en curso (Iniciado asignado + Tomado) por delivery y por zona (CU-14). */
+export interface CargaZona {
+  zonaId: string
+  zonaNombre: string
+  total: number
+  asignados: number
+  tomados: number
+}
+
+export interface CargaDelivery {
+  repartidorId: string
+  nombre: string
+  contacto?: string
+  activo: boolean
+  total: number
+  asignados: number
+  tomados: number
+  zonas: CargaZona[]
+}
+
+export interface ResumenDeliverys {
+  datos: CargaDelivery[]
+  sinAsignar: Omit<CargaDelivery, 'repartidorId' | 'nombre' | 'contacto' | 'activo'>
 }
 
 export const pedidoKeys = {
@@ -46,6 +72,11 @@ export function usePedidos(filtros: PedidoFiltros, options: { refetchInterval?: 
     refetchInterval: options.refetchInterval,
     enabled: options.enabled,
   })
+}
+
+/** CU-14 (solo ADMIN). Comparte el prefijo 'pedidos': se invalida con cada cambio de pedido. */
+export function useResumenDeliverys() {
+  return useQuery({ queryKey: ['pedidos', 'resumen-deliverys'], queryFn: pedidosApi.resumenDeliverys })
 }
 
 export function usePedido(id: string) {

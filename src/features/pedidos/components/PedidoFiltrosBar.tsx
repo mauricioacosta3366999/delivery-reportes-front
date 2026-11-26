@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Card } from '@/components/ui/Card'
-import { Field, Input, Select } from '@/components/ui/Field'
+import { Checkbox, Field, Input, Select } from '@/components/ui/Field'
 import type { Usuario } from '@/features/usuarios/types'
+import type { Zona } from '@/features/zonas/api'
 import { ESTADOS, estadoLabels, type Estado, type PedidoFiltros } from '../types'
 
 interface Props {
@@ -11,9 +12,14 @@ interface Props {
   activos: boolean
   vendedores?: Usuario[]
   repartidores?: Usuario[]
+  /** Solo ADMIN (CU-14): filtro por zona y "solo en curso". */
+  zonas?: Zona[]
 }
 
-export function PedidoFiltrosBar({ filtros, onChange, onLimpiar, activos, vendedores, repartidores }: Props) {
+/** Valor especial del select de delivery para `sinAsignar=true`. */
+const SIN_ASIGNAR = 'sin-asignar'
+
+export function PedidoFiltrosBar({ filtros, onChange, onLimpiar, activos, vendedores, repartidores, zonas }: Props) {
   const rangoInvalido = Boolean(filtros.desde && filtros.hasta && filtros.desde > filtros.hasta)
   return (
     <Card className="mb-5 p-4">
@@ -52,11 +58,33 @@ export function PedidoFiltrosBar({ filtros, onChange, onLimpiar, activos, vended
             )}
           </Field>
         )}
+        {zonas && (
+          <Field label="Zona" className="lg:w-44">
+            {(a11y) => (
+              <Select {...a11y} value={filtros.zonaId ?? ''} onChange={(event) => onChange({ zonaId: event.target.value || undefined })}>
+                <option value="">Todas</option>
+                {zonas.map((zona) => (
+                  <option key={zona._id} value={zona._id}>
+                    {zona.nombre}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
         {repartidores && (
           <Field label="Delivery" className="lg:w-48">
             {(a11y) => (
-              <Select {...a11y} value={filtros.repartidorId ?? ''} onChange={(event) => onChange({ repartidorId: event.target.value || undefined })}>
+              <Select
+                {...a11y}
+                value={filtros.sinAsignar ? SIN_ASIGNAR : (filtros.repartidorId ?? '')}
+                onChange={(event) => {
+                  const value = event.target.value
+                  onChange(value === SIN_ASIGNAR ? { repartidorId: undefined, sinAsignar: true } : { repartidorId: value || undefined, sinAsignar: undefined })
+                }}
+              >
                 <option value="">Todos</option>
+                <option value={SIN_ASIGNAR}>Sin asignar</option>
                 {repartidores.map((usuario) => (
                   <option key={usuario._id} value={usuario._id}>
                     {usuario.nombre}
@@ -65,6 +93,14 @@ export function PedidoFiltrosBar({ filtros, onChange, onLimpiar, activos, vended
               </Select>
             )}
           </Field>
+        )}
+        {zonas && (
+          <Checkbox
+            label="Solo en curso"
+            className="col-span-2 md:col-span-1 lg:pb-0"
+            checked={Boolean(filtros.activos)}
+            onChange={(event) => onChange({ activos: event.target.checked || undefined })}
+          />
         )}
         {activos && (
           <button type="button" onClick={onLimpiar} className="col-span-2 min-h-11 rounded-xl px-3 text-sm font-semibold text-azul hover:bg-celeste-50 md:col-span-1">

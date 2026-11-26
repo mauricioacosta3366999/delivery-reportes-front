@@ -290,3 +290,41 @@ describe('pedidos asignados (CU-07, CU-12, CU-13)', () => {
     expect(screen.getByRole('button', { name: 'Cancelar pedido' })).toBeInTheDocument()
   })
 })
+
+describe('pantalla Deliverys (CU-14)', () => {
+  it('lista la carga de cada delivery y enlaza al listado filtrado', async () => {
+    const delivery = makeUsuario('REPARTIDOR')
+    server.use(
+      http.get(`${API}/pedidos/resumen-deliverys`, () =>
+        HttpResponse.json({
+          datos: [
+            {
+              repartidorId: delivery._id,
+              nombre: 'Carlos Gómez',
+              contacto: '0991 585 513',
+              activo: true,
+              total: 7,
+              asignados: 3,
+              tomados: 4,
+              zonas: [{ zonaId: '6737b000c2b4e8a1d4f00010', zonaNombre: 'Asunción', total: 4, asignados: 1, tomados: 3 }],
+            },
+          ],
+          sinAsignar: { total: 2, asignados: 2, tomados: 0, zonas: [] },
+        }),
+      ),
+    )
+    renderApp('/admin/deliverys', { usuario: makeUsuario('ADMIN') })
+
+    expect(await screen.findByText('Carlos Gómez')).toBeInTheDocument()
+    expect(screen.getByText('3 asignados sin retirar · 4 tomados')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver 7 pedidos en curso de Carlos Gómez' })).toHaveAttribute(
+      'href',
+      `/admin/pedidos?activos=true&repartidorId=${delivery._id}`,
+    )
+    expect(screen.getByRole('link', { name: /Asunción/ })).toHaveAttribute(
+      'href',
+      `/admin/pedidos?activos=true&repartidorId=${delivery._id}&zonaId=6737b000c2b4e8a1d4f00010`,
+    )
+    expect(screen.getByRole('link', { name: 'Ver 2 pedidos sin asignar' })).toHaveAttribute('href', '/admin/pedidos?activos=true&sinAsignar=true')
+  })
+})

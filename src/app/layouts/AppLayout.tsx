@@ -24,6 +24,7 @@ const navPorRol: Record<Rol, NavItem[]> = {
   ],
   ADMIN: [
     { to: '/admin/pedidos', label: 'Pedidos', icon: 'box' },
+    { to: '/admin/deliverys', label: 'Deliverys', icon: 'truck' },
     { to: '/admin/zonas', label: 'Zonas', icon: 'map' },
     { to: '/admin/usuarios', label: 'Usuarios', icon: 'users' },
     { to: '/reportes', label: 'Reportes', icon: 'file' },

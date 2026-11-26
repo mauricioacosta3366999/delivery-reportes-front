@@ -11,6 +11,7 @@ import type { Pedido } from '@/features/pedidos/types'
 import { PedidosLista } from '@/features/pedidos/components/PedidosLista'
 import { useFiltrosURL } from '@/features/pedidos/useFiltrosURL'
 import { useUsuariosPorRol } from '@/features/usuarios/api'
+import { useZonas } from '@/features/zonas/api'
 import { getErrorMessage } from '@/lib/api/client'
 
 /** El admin ve todos los pedidos, con filtros por vendedor y delivery. */
@@ -21,6 +22,8 @@ export function AdminPedidosPage() {
   const vendedores = useUsuariosPorRol('VENDEDOR')
   const repartidores = useUsuariosPorRol('REPARTIDOR')
   const [asignando, setAsignando] = useState<Pedido | null>(null)
+  // Todas las zonas (también las inactivas, que pueden tener pedidos en curso).
+  const zonas = useZonas({ limite: 100 })
 
   return (
     <>
@@ -40,6 +43,7 @@ export function AdminPedidosPage() {
         activos={activos}
         vendedores={vendedores.data ?? []}
         repartidores={repartidores.data ?? []}
+        zonas={zonas.data?.datos ?? []}
       />
 
       {query.isPending ? (
