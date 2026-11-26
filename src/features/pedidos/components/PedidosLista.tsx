@@ -13,10 +13,14 @@ interface Props {
   mostrarVendedor?: boolean
   /** Resolver de nombre de delivery a partir de su id (solo ADMIN puede leer usuarios). */
   nombreRepartidor?: (id: string) => string | undefined
+  /** Botón "Asignar / Cambiar delivery" (solo ADMIN, CU-12). */
+  onAsignar?: (pedido: Pedido) => void
 }
 
+const puedeAsignarse = (pedido: Pedido) => pedido.estado === 'INICIADO' || pedido.estado === 'TOMADO'
+
 /** Cards en mobile, tabla desde md. */
-export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreRepartidor }: Props) {
+export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreRepartidor, onAsignar }: Props) {
   return (
     <>
       <ul className="space-y-3 md:hidden">
@@ -49,6 +53,16 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
                 )}
               </Card>
             </Link>
+            {onAsignar && puedeAsignarse(pedido) && (
+              <button
+                type="button"
+                onClick={() => onAsignar(pedido)}
+                className="mt-1.5 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-naranja-700 hover:bg-naranja-50"
+              >
+                <Icon name="truck" className="size-4" /> {pedido.repartidorId ? 'Cambiar delivery' : 'Asignar delivery'}
+                <span className="sr-only"> del pedido {codigoPedido(pedido)}</span>
+              </button>
+            )}
           </li>
         ))}
       </ul>
@@ -67,6 +81,11 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
               <th scope="col" className="px-4 py-3 text-right">Delivery</th>
               <th scope="col" className="px-4 py-3 text-right">A rendir</th>
               <th scope="col" className="px-4 py-3">Estado</th>
+              {onAsignar && (
+                <th scope="col" className="px-4 py-3">
+                  <span className="sr-only">Acciones</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-linea">
@@ -90,6 +109,20 @@ export function PedidosLista({ pedidos, basePath, mostrarVendedor, nombreReparti
                 <td className="px-4 py-3">
                   <EstadoBadge pedido={pedido} />
                 </td>
+                {onAsignar && (
+                  <td className="px-2 py-2 text-right">
+                    {puedeAsignarse(pedido) && (
+                      <button
+                        type="button"
+                        onClick={() => onAsignar(pedido)}
+                        className="relative z-10 min-h-9 rounded-lg px-2.5 text-xs font-semibold whitespace-nowrap text-naranja-700 hover:bg-naranja-50"
+                      >
+                        {pedido.repartidorId ? 'Cambiar' : 'Asignar'}
+                        <span className="sr-only"> delivery del pedido {codigoPedido(pedido)}</span>
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

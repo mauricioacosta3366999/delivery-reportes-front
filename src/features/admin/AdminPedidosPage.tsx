@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState, ErrorState, PageHeader } from '@/components/ui/Card'
 import { Icon } from '@/components/ui/Icon'
 import { Pagination } from '@/components/ui/Pagination'
 import { PageLoader } from '@/components/ui/Spinner'
 import { usePedidos } from '@/features/pedidos/api'
+import { AsignarDeliveryDialog } from '@/features/pedidos/components/AsignarDeliveryDialog'
 import { PedidoFiltrosBar } from '@/features/pedidos/components/PedidoFiltrosBar'
+import type { Pedido } from '@/features/pedidos/types'
 import { PedidosLista } from '@/features/pedidos/components/PedidosLista'
 import { useFiltrosURL } from '@/features/pedidos/useFiltrosURL'
 import { useUsuariosPorRol } from '@/features/usuarios/api'
@@ -17,6 +20,7 @@ export function AdminPedidosPage() {
   const query = usePedidos(rangoInvalido ? { ...filtros, desde: undefined, hasta: undefined } : filtros)
   const vendedores = useUsuariosPorRol('VENDEDOR')
   const repartidores = useUsuariosPorRol('REPARTIDOR')
+  const [asignando, setAsignando] = useState<Pedido | null>(null)
 
   return (
     <>
@@ -51,10 +55,12 @@ export function AdminPedidosPage() {
             basePath="/admin/pedidos"
             mostrarVendedor
             nombreRepartidor={(id) => repartidores.porId.get(id)?.nombre}
+            onAsignar={setAsignando}
           />
           <Pagination pagina={query.data.pagina} limite={query.data.limite} total={query.data.total} onChange={(pagina) => setFiltros({ pagina })} />
         </>
       )}
+      {asignando && <AsignarDeliveryDialog pedido={asignando} repartidores={repartidores.data ?? []} onClose={() => setAsignando(null)} />}
     </>
   )
 }

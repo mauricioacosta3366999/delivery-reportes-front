@@ -55,11 +55,14 @@ export function PedidoDetallePage({ basePath, backLabel }: Props) {
         acciones={<AccionesPedido pedido={pedido} usuario={usuario} editarPath={`${basePath}/${pedido._id}/editar`} />}
         extra={
           esAdmin && repartidor ? (
-            <CardSection title="Delivery asignado">
+            <CardSection title="Delivery">
               <DataList
                 items={[
-                  { label: 'Nombre', value: repartidor.nombre },
+                  { label: 'Nombre', value: `${repartidor.nombre}${repartidor.activo ? '' : ' (inactivo)'}` },
                   { label: 'Contacto', value: repartidor.contacto ? <TelLink contacto={repartidor.contacto} /> : '—' },
+                  ...(pedido.estado === 'INICIADO'
+                    ? [{ label: 'Estado', value: pedido.asignadoPor === 'ZONA' ? 'Asignado por la zona, todavía sin retirar' : 'Asignado por un admin, todavía sin retirar' }]
+                    : []),
                 ]}
               />
             </CardSection>

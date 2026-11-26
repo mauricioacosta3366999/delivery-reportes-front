@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import { Link } from 'react-router'
 import { z } from 'zod'
 import { Button } from '@/components/ui/Button'
 import { Badge, Card, EmptyState, ErrorState, PageHeader } from '@/components/ui/Card'
@@ -11,6 +12,8 @@ import { MoneyInput } from '@/components/ui/MoneyInput'
 import { Pagination } from '@/components/ui/Pagination'
 import { PageLoader } from '@/components/ui/Spinner'
 import { useToast } from '@/components/ui/useToast'
+import { useUsuariosPorRol } from '@/features/usuarios/api'
+import type { Usuario } from '@/features/usuarios/types'
 import { useGuardarZona, useZonas, type Zona, type ZonaInput } from '@/features/zonas/api'
 import { getErrorMessage } from '@/lib/api/client'
 import { applyApiErrors } from '@/lib/api/errors'
@@ -26,6 +29,7 @@ export function ZonasPage() {
   const toast = useToast()
   const guardar = useGuardarZona()
   const query = useZonas({ activa: filtro === 'todas' ? undefined : filtro === 'activas', pagina, limite: 20 })
+  const repartidores = useUsuariosPorRol('REPARTIDOR')
 
   function toggleActiva(zona: Zona) {
     guardar.mutate(
@@ -99,6 +103,23 @@ export function ZonasPage() {
                       </Badge>
                     )}
                   </div>
+                  <div className="space-y-1 text-sm">
+                    <p className="flex items-center gap-1.5 text-gris">
+                      <Icon name="truck" className="size-4 shrink-0" />
+                      {zona.repartidorDefaultId
+                        ? `Delivery por defecto: ${repartidores.porId.get(zona.repartidorDefaultId)?.nombre ?? '…'}`
+                        : 'Sin delivery por defecto'}
+                    </p>
+                    {zona.pedidosActivos !== undefined && (
+                      <Link
+                        to={`/admin/pedidos?activos=true&zonaId=${zona._id}`}
+                        className="inline-flex min-h-9 items-center gap-1.5 font-semibold text-azul underline-offset-4 hover:underline"
+                      >
+                        <Icon name="box" className="size-4" />
+                        {zona.pedidosActivos === 1 ? '1 pedido en curso' : `${zona.pedidosActivos} pedidos en curso`}
+                      </Link>
+                    )}
+                  </div>
                   <div className="mt-auto flex gap-2 pt-1">
                     <Button size="sm" variant="secondary" className="flex-1" onClick={() => setEditando(zona)}>
                       Editar
@@ -121,7 +142,7 @@ export function ZonasPage() {
         </>
       )}
 
-      {editando && <ZonaFormDialog zona={editando === 'nueva' ? null : editando} onClose={() => setEditando(null)} />}
+      {editando && <ZonaFormDialog zona={editando === 'nueva' ? null : editando} repartidores={repartidores.data ?? []} onClose={() => setEditando(null)} />}
     </>
   )
 }
@@ -131,11 +152,13 @@ const schema = z.object({
   descripcion: z.string().trim().max(500, 'Máximo 500 caracteres'),
   costoDelivery: z.number({ error: 'Ingresá el costo' }).int().min(0, 'No puede ser negativo').max(1_000_000_000, 'Máximo 1.000.000.000 Gs'),
   requiereTransportadora: z.boolean(),
+  /** '' = ninguno (los pedidos quedan disponibles para todos). */
+  repartidorDefaultId: z.string(),
   activa: z.boolean(),
 })
 type Values = z.infer<typeof schema>
 
-function ZonaFormDialog({ zona, onClose }: { zona: Zona | null; onClose: () => void }) {
+function ZonaFormDialog({ zona, repartidores, onClose }: { zona: Zona | null; repartidores: Usuario[]; onClose: () => void }) {
   const toast = useToast()
   const guardar = useGuardarZona()
   const [formError, setFormError] = useState<string | null>(null)
@@ -148,16 +171,26 @@ function ZonaFormDialog({ zona, onClose }: { zona: Zona | null; onClose: () => v
   } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: zona
-      ? { nombre: zona.nombre, descripcion: zona.descripcion ?? '', costoDelivery: zona.costoDelivery, requiereTransportadora: zona.requiereTransportadora, activa: zona.activa }
-      : { nombre: '', descripcion: '', costoDelivery: Number.NaN, requiereTransportadora: false, activa: true },
+      ? {
+          nombre: zona.nombre,
+          descripcion: zona.descripcion ?? '',
+          costoDelivery: zona.costoDelivery,
+          requiereTransportadora: zona.requiereTransportadora,
+          repartidorDefaultId: zona.repartidorDefaultId ?? '',
+          activa: zona.activa,
+        }
+      : { nombre: '', descripcion: '', costoDelivery: Number.NaN, requiereTransportadora: false, repartidorDefaultId: '', activa: true },
   })
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
+    // '' en el formulario = ninguno; la API espera null (y al crear, mejor omitirlo).
+    const { repartidorDefaultId, ...resto } = values
+    const completo: Partial<ZonaInput> = { ...resto, repartidorDefaultId: repartidorDefaultId || null }
     // En edición solo se envía lo que cambió.
     const input: Partial<ZonaInput> = zona
-      ? Object.fromEntries(Object.entries(values).filter(([key]) => dirtyFields[key as keyof Values]))
-      : values
+      ? Object.fromEntries(Object.entries(completo).filter(([key]) => dirtyFields[key as keyof Values]))
+      : { ...resto, ...(repartidorDefaultId ? { repartidorDefaultId } : {}) }
     if (zona && Object.keys(input).length === 0) return onClose()
     try {
       await guardar.mutateAsync({ id: zona?._id, input })
@@ -202,6 +235,26 @@ function ZonaFormDialog({ zona, onClose }: { zona: Zona | null; onClose: () => v
             </Field>
           )}
         />
+        <Field
+          label="Delivery por defecto"
+          optional
+          hint="Los pedidos nuevos de la zona se le asignan solos. No cambia los pedidos que ya existen."
+          error={errors.repartidorDefaultId?.message}
+        >
+          {(a11y) => (
+            <Select {...a11y} {...register('repartidorDefaultId')}>
+              <option value="">Ninguno (disponible para todos)</option>
+              {repartidores
+                .filter((usuario) => usuario.activo || usuario._id === zona?.repartidorDefaultId)
+                .map((usuario) => (
+                  <option key={usuario._id} value={usuario._id}>
+                    {usuario.nombre}
+                    {usuario.activo ? '' : ' (inactivo)'}
+                  </option>
+                ))}
+            </Select>
+          )}
+        </Field>
         <Checkbox label="Requiere transportadora" {...register('requiereTransportadora')} />
         <Checkbox label="Activa (visible para los vendedores)" {...register('activa')} />
       </form>

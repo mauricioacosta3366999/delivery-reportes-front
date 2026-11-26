@@ -124,7 +124,9 @@ describe('delivery toma un pedido (CU-07)', () => {
   it('si otro delivery lo tomó primero (409), avisa y refresca la lista', async () => {
     let listados = 0
     server.use(
-      http.get(`${API}/pedidos`, () => {
+      http.get(`${API}/pedidos`, ({ request }) => {
+        // "Asignados a vos" (repartidorId) vacío; los libres (sinAsignar) cambian tras el 409.
+        if (new URL(request.url).searchParams.get('repartidorId')) return HttpResponse.json(paginated([]))
         listados++
         return HttpResponse.json(paginated(listados === 1 ? [makePedido()] : []))
       }),
@@ -151,8 +153,9 @@ describe('delivery toma un pedido (CU-07)', () => {
     let tomadoOk = false
     server.use(
       http.get(`${API}/pedidos`, ({ request }) => {
-        const estado = new URL(request.url).searchParams.get('estado')
-        if (estado === 'INICIADO') return HttpResponse.json(paginated(tomadoOk ? [] : [makePedido()]))
+        const params = new URL(request.url).searchParams
+        if (params.get('estado') === 'INICIADO' && params.get('repartidorId')) return HttpResponse.json(paginated([]))
+        if (params.get('estado') === 'INICIADO') return HttpResponse.json(paginated(tomadoOk ? [] : [makePedido()]))
         return HttpResponse.json(paginated(tomadoOk ? [tomado] : []))
       }),
       http.post(`${API}/pedidos/:id/tomar`, () => {
@@ -183,5 +186,107 @@ describe('reporte mensual (CU-05)', () => {
     const { user } = renderApp('/reportes', { usuario: makeUsuario('VENDEDOR') })
     await user.click(await screen.findByRole('button', { name: /Descargar PDF/ }))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/demasiado grande/))
+  })
+})
+
+describe('pedidos asignados (CU-07, CU-12, CU-13)', () => {
+  const delivery = makeUsuario('REPARTIDOR')
+
+  it('el delivery ve primero los asignados a él y puede tomarlos', async () => {
+    const asignado = makePedido({ _id: '6737c000c2b4e8a1d4f00201', numero: 61, nombreCliente: 'CLIENTE ASIGNADO', repartidorId: delivery._id, asignadoPor: 'ZONA' })
+    let tomarBody: string | undefined
+    server.use(
+      http.get(`${API}/pedidos`, ({ request }) => {
+        const params = new URL(request.url).searchParams
+        if (params.get('repartidorId') === delivery._id) return HttpResponse.json(paginated([asignado]))
+        expect(params.get('sinAsignar')).toBe('true')
+        return HttpResponse.json(paginated([makePedido()]))
+      }),
+      http.post(`${API}/pedidos/:id/tomar`, async ({ request, params }) => {
+        expect(params.id).toBe(asignado._id)
+        tomarBody = await request.text()
+        return HttpResponse.json({ ...asignado, estado: 'TOMADO', asignadoPor: null, tomadoAt: '2026-11-24T14:00:00.000Z' })
+      }),
+    )
+    const { user } = renderApp('/entregas', { usuario: delivery })
+
+    const seccion = (await screen.findByRole('heading', { name: /Asignados a vos/ })).closest('section')!
+    expect(within(seccion).getByText('CLIENTE ASIGNADO')).toBeInTheDocument()
+    expect(within(seccion).getByText(/tomalo cuando lo retires/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Disponibles para todos' })).toBeInTheDocument()
+
+    await user.click(within(seccion).getByRole('button', { name: 'Tomar pedido' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('¿Tomar el pedido #61?')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Tomar pedido' }))
+    expect(await screen.findByText(/Pedido #61 tomado/)).toBeInTheDocument()
+    expect(tomarBody).toBe('')
+  })
+
+  it('al entregar, el delivery corrige que el cliente le pagó al vendedor (CU-08/11)', async () => {
+    const tomado = makePedido({ estado: 'TOMADO', repartidorId: delivery._id, tomadoAt: '2026-11-15T22:00:00.000Z' })
+    let body: unknown
+    server.use(
+      http.get(`${API}/pedidos`, () => HttpResponse.json(paginated([tomado]))),
+      http.post(`${API}/pedidos/:id/entregar`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ ...tomado, estado: 'ENTREGADO', pagoDirectoVendedor: true, montoTotal: 0, montoARendir: -40000 })
+      }),
+    )
+    const { user } = renderApp('/entregas?tab=pendientes', { usuario: delivery })
+
+    await user.click(await screen.findByRole('button', { name: /Marcar como entregado/ }))
+    const dialog = await screen.findByRole('dialog')
+    const casilla = within(dialog).getByRole('checkbox', { name: /le pagó directo al vendedor/ })
+    expect(casilla).not.toBeChecked()
+    await user.click(casilla)
+    await user.click(within(dialog).getByRole('button', { name: 'Sí, fue entregado' }))
+
+    expect(await screen.findByText(/marcado como entregado/)).toBeInTheDocument()
+    expect(body).toEqual({ pagoDirectoVendedor: true })
+  })
+
+  it('un pedido con pago directo le avisa al delivery que no cobre', async () => {
+    server.use(http.get(`${API}/pedidos`, ({ request }) => {
+      const params = new URL(request.url).searchParams
+      return HttpResponse.json(paginated(params.get('sinAsignar') ? [makePedido({ pagoDirectoVendedor: true, montoTotal: 0 })] : []))
+    }))
+    renderApp('/entregas', { usuario: delivery })
+    expect(await screen.findByText(/No cobrar: el cliente ya le pagó al vendedor/)).toBeInTheDocument()
+    expect(screen.getAllByRole('link').map((link) => link.getAttribute('href'))).toContain('https://wa.me/595985444777')
+  })
+
+  it('el admin asigna un pedido a un delivery', async () => {
+    const pedido = makePedido()
+    let body: unknown
+    server.use(
+      http.get(`${API}/pedidos`, () => HttpResponse.json(paginated([pedido]))),
+      http.get(`${API}/usuarios`, ({ request }) => {
+        const rol = new URL(request.url).searchParams.get('rol')
+        return HttpResponse.json(paginated(rol === 'REPARTIDOR' ? [delivery] : [makeUsuario('VENDEDOR')]))
+      }),
+      http.post(`${API}/pedidos/:id/asignar`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ ...pedido, repartidorId: delivery._id, asignadoPor: 'ADMIN' })
+      }),
+    )
+    const { user } = renderApp('/admin/pedidos', { usuario: makeUsuario('ADMIN') })
+
+    await user.click((await screen.findAllByRole('button', { name: /^Asignar/ }))[0])
+    const dialog = await screen.findByRole('dialog')
+    await user.selectOptions(within(dialog).getByLabelText('Delivery'), delivery._id)
+    await user.click(within(dialog).getByRole('button', { name: 'Guardar' }))
+
+    expect(await screen.findByText('Pedido #58 asignado a Carlos Gómez.')).toBeInTheDocument()
+    expect(body).toEqual({ repartidorId: delivery._id })
+  })
+
+  it('el vendedor puede editar un pedido asignado que nadie tomó', async () => {
+    const pedido = makePedido({ repartidorId: delivery._id, asignadoPor: 'ZONA' })
+    server.use(http.get(`${API}/pedidos/:id`, () => HttpResponse.json(pedido)))
+    renderApp(`/pedidos/${pedido._id}`, { usuario: makeUsuario('VENDEDOR') })
+    expect(await screen.findByText('Asignado')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Editar pedido' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancelar pedido' })).toBeInTheDocument()
   })
 })

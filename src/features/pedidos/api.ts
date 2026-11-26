@@ -38,12 +38,13 @@ export const pedidoKeys = {
   detail: (id: string) => ['pedido', id] as const,
 }
 
-export function usePedidos(filtros: PedidoFiltros, options: { refetchInterval?: number } = {}) {
+export function usePedidos(filtros: PedidoFiltros, options: { refetchInterval?: number; enabled?: boolean } = {}) {
   return useQuery({
     queryKey: pedidoKeys.list(filtros),
     queryFn: () => pedidosApi.list(filtros),
     placeholderData: keepPreviousData,
     refetchInterval: options.refetchInterval,
+    enabled: options.enabled,
   })
 }
 
