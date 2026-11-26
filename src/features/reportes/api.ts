@@ -7,8 +7,11 @@ export interface ReporteQuery {
   repartidorId?: string
 }
 
-export function nombreReporte({ anio, mes }: ReporteQuery) {
-  return `reporte-mensual-${anio}-${String(mes).padStart(2, '0')}.pdf`
+/** PDF (por defecto en la API) o planilla Excel (CU-16). */
+export type FormatoReporte = 'pdf' | 'xlsx'
+
+export function nombreReporte({ anio, mes }: ReporteQuery, formato: FormatoReporte = 'pdf') {
+  return `reporte-mensual-${anio}-${String(mes).padStart(2, '0')}.${formato}`
 }
 
 /** Toma el filename de Content-Disposition; si no viene, usa el nombre estándar. */
@@ -17,11 +20,12 @@ export function filenameDesdeHeader(header: string | null, fallback: string) {
   return match ? decodeURIComponent(match[1]) : fallback
 }
 
-/** GET /reportes/mensual devuelve un PDF binario; los errores vienen en JSON (apiRequest los convierte en ApiError). */
-export async function descargarReporte(query: ReporteQuery) {
-  const response = await apiRequest('/reportes/mensual', { query: { ...query } })
+/** GET /reportes/mensual devuelve un PDF o un .xlsx binario; los errores vienen en JSON (apiRequest los convierte en ApiError). */
+export async function descargarReporte(query: ReporteQuery, formato: FormatoReporte = 'pdf') {
+  // Sin `formato` la API devuelve PDF: solo se envía para Excel.
+  const response = await apiRequest('/reportes/mensual', { query: { ...query, ...(formato === 'xlsx' ? { formato } : {}) } })
   const blob = await response.blob()
-  const filename = filenameDesdeHeader(response.headers.get('Content-Disposition'), nombreReporte(query))
+  const filename = filenameDesdeHeader(response.headers.get('Content-Disposition'), nombreReporte(query, formato))
   guardarArchivo(blob, filename)
   return filename
 }

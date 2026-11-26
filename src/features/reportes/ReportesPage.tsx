@@ -9,15 +9,15 @@ import { useUsuario } from '@/features/auth/useAuth'
 import { useUsuariosPorRol } from '@/features/usuarios/api'
 import { ApiError, getErrorMessage } from '@/lib/api/client'
 import { MESES, mesActual } from '@/lib/format'
-import { descargarReporte, type ReporteQuery } from './api'
+import { descargarReporte, type FormatoReporte, type ReporteQuery } from './api'
 
 const descripcionPorRol = {
-  VENDEDOR: 'Tus pedidos entregados en el mes, con el delivery descontado: lo que tenés que rendir.',
+  VENDEDOR: 'Tus pedidos entregados en el mes, con el delivery descontado: lo que tenés que rendir, con costo y ganancia.',
   REPARTIDOR: 'Los pedidos que entregaste en el mes.',
   ADMIN: 'Pedidos entregados en el mes. Podés filtrar por vendedor o delivery.',
 } as const
 
-/** CU-05: reporte mensual en PDF (por fecha de entrega, hora de Paraguay). */
+/** CU-05/16: reporte mensual en PDF o Excel (por fecha de entrega, hora de Paraguay). */
 export function ReportesPage() {
   const usuario = useUsuario()
   const toast = useToast()
@@ -31,9 +31,22 @@ export function ReportesPage() {
   const repartidores = useUsuariosPorRol('REPARTIDOR', esAdmin)
 
   const descarga = useMutation({
-    mutationFn: (query: ReporteQuery) => descargarReporte(query),
+    mutationFn: ({ query, formato }: { query: ReporteQuery; formato: FormatoReporte }) => descargarReporte(query, formato),
     onSuccess: (filename) => toast.success(`Descargado ${filename}`),
   })
+  const descargando = descarga.isPending ? descarga.variables.formato : null
+
+  function descargar(formato: FormatoReporte) {
+    descarga.mutate({
+      formato,
+      query: {
+        anio,
+        mes,
+        ...(esAdmin && vendedorId ? { vendedorId } : {}),
+        ...(esAdmin && repartidorId ? { repartidorId } : {}),
+      },
+    })
+  }
 
   const anios = Array.from({ length: 6 }, (_, index) => actual.anio - index)
   const mesFuturo = anio === actual.anio && mes > actual.mes
@@ -53,12 +66,7 @@ export function ReportesPage() {
           className="space-y-5"
           onSubmit={(event) => {
             event.preventDefault()
-            descarga.mutate({
-              anio,
-              mes,
-              ...(esAdmin && vendedorId ? { vendedorId } : {}),
-              ...(esAdmin && repartidorId ? { repartidorId } : {}),
-            })
+            descargar('pdf')
           }}
         >
           <div className="grid grid-cols-2 gap-4">
@@ -116,13 +124,20 @@ export function ReportesPage() {
 
           {mesFuturo && <p className="text-sm text-gris">Ese mes todavía no empezó: el reporte va a salir vacío.</p>}
 
-          <Button type="submit" size="lg" block loading={descarga.isPending}>
-            <Icon name="download" /> Descargar PDF
-          </Button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button type="submit" size="lg" block loading={descargando === 'pdf'} disabled={descargando === 'xlsx'}>
+              <Icon name="download" /> Descargar PDF
+            </Button>
+            <Button size="lg" block variant="secondary" loading={descargando === 'xlsx'} disabled={descargando === 'pdf'} onClick={() => descargar('xlsx')}>
+              <Icon name="download" /> Descargar Excel
+            </Button>
+          </div>
         </form>
         <ul className="space-y-1.5 border-t border-linea pt-4 text-xs text-gris">
           <li>• Incluye solo pedidos entregados, según la fecha de entrega.</li>
           <li>• "A rendir" = venta de productos − costo de delivery (puede ser negativo).</li>
+          <li>• Si el cliente le pagó directo al vendedor, el delivery no cobró nada y se descuenta el costo del delivery.</li>
+          <li>• El Excel trae las mismas columnas, con los importes como números para sumar u ordenar.</li>
           <li>• Si no hubo entregas, se descarga igual con los totales en 0.</li>
         </ul>
       </Card>

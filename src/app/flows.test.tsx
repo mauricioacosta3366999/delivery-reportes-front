@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { makePedido, makeToken, makeUsuario, makeZona, paginated } from '@/test/fixtures'
 import { renderApp } from '@/test/renderApp'
 import { API, server } from '@/test/server'
@@ -186,6 +186,28 @@ describe('reporte mensual (CU-05)', () => {
     const { user } = renderApp('/reportes', { usuario: makeUsuario('VENDEDOR') })
     await user.click(await screen.findByRole('button', { name: /Descargar PDF/ }))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/demasiado grande/))
+  })
+
+  it('descarga el Excel con formato=xlsx (CU-16)', async () => {
+    let formato: string | null = null
+    server.use(
+      http.get(`${API}/reportes/mensual`, ({ request }) => {
+        formato = new URL(request.url).searchParams.get('formato')
+        return new HttpResponse('xlsx', {
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': 'attachment; filename="reporte-mensual-2026-11.xlsx"',
+          },
+        })
+      }),
+    )
+    // jsdom no implementa object URLs ni descargas.
+    URL.createObjectURL = vi.fn(() => 'blob:reporte')
+    URL.revokeObjectURL = vi.fn()
+    const { user } = renderApp('/reportes', { usuario: makeUsuario('VENDEDOR') })
+    await user.click(await screen.findByRole('button', { name: /Descargar Excel/ }))
+    expect(await screen.findByText('Descargado reporte-mensual-2026-11.xlsx')).toBeInTheDocument()
+    expect(formato).toBe('xlsx')
   })
 })
 
