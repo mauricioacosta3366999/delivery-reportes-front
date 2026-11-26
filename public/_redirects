@@ -1,0 +1,2 @@
+# Netlify: SPA. Si la ruta no es un archivo existente (p. ej. /entregas), servir la app.
+/*    /index.html   200

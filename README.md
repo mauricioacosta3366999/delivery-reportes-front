@@ -121,7 +121,9 @@ Checklist del hosting:
 
 1. **Publicar `dist/`** por HTTPS.
 2. **Fallback de SPA:** cualquier ruta que no sea un archivo debe devolver `index.html`
-   (si no, recargar en `/pedidos` da 404). En nginx:
+   (si no, recargar en `/pedidos` da 404). En **Netlify** ya está resuelto con
+   `public/_redirects` (y el caché de assets con `public/_headers`), que el build copia a
+   `dist/`. En nginx:
 
    ```nginx
    location / {
