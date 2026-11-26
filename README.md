@@ -2,7 +2,7 @@
 
 SPA para el sistema de delivery: vendedores cargan pedidos, deliverys los toman y los entregan,
 y cada uno descarga su reporte mensual en PDF o Excel. Consume la API de
-[`Delivery-reportes-api`](../Delivery-reportes-api) (casos de uso CU-01 a CU-16 en `use_cases/`).
+[`Delivery-reportes-api`](../Delivery-reportes-api) (casos de uso CU-01 a CU-17 en `use_cases/`).
 
 > **Compatibilidad:** este front usa los campos y filtros de las etapas 1 a 5 de la API
 > (número de pedido, asignación, catálogo, Excel…). La API es estricta, así que **siempre se
@@ -74,7 +74,7 @@ vendedores y deliverys desde `/registro`.
 | Rol | Rutas | Puede |
 |---|---|---|
 | Vendedor | `/pedidos`, `/pedidos/nuevo`, `/pedidos/:id`, `/productos`, `/reportes` | Crear, ver, editar y cancelar sus pedidos (mientras estén INICIADOS, aunque estén asignados); marcar "el cliente ya me pagó"; catálogo con precio y costo; reporte mensual |
-| Delivery | `/entregas` (Disponibles / Pendientes / Entregados), `/reportes` | Ver primero los pedidos asignados a él, tomar disponibles, marcarlos como entregados (y corregir quién cobró) |
+| Delivery | `/entregas` (Disponibles / Pendientes / Entregados), `/reportes` | Ver primero los pedidos asignados a él, tomar disponibles, marcarlos como entregados (y corregir quién cobró), subir la foto de la boleta de la transportadora |
 | Admin | `/admin/pedidos`, `/admin/deliverys`, `/admin/zonas`, `/admin/productos`, `/admin/usuarios`, `/reportes` | Todos los pedidos (crear a nombre de un vendedor, asignar o liberar el delivery), carga por delivery y zona, zonas con delivery por defecto, catálogos, usuarios y reportes |
 
 Ciclo del pedido: **Iniciado** (recibe su número `#N`) → *Asignado* (opcional: por el admin o
@@ -115,6 +115,9 @@ src/
   calcula siempre el backend**: nunca se envían.
 - **Pago directo al vendedor:** el delivery no cobra (`montoTotal = 0`) y a rendir = −delivery.
 - **Costos:** el delivery nunca los recibe; el vendedor y el admin ven costo y ganancia.
+- **Boleta de depósito (CU-17):** la foto se comprime a JPEG en el navegador y se sube directo a
+  Cloudflare R2 con una URL firmada (`features/pedidos/boleta.ts`); la API solo firma y confirma.
+  El bucket tiene que tener en su CORS el origen del front (`http://localhost:5173` en dev).
 - **Teléfonos:** cada contacto ofrece llamar y WhatsApp (`lib/telefono.ts`: `0981…` → `wa.me/595981…`).
 - **Contratos estrictos:** la API rechaza campos desconocidos, así que los opcionales vacíos
   se omiten (ver `toCreatePayload` / `toUpdatePayload` en `features/pedidos/form.ts`).
