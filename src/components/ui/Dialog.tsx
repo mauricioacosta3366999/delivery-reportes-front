@@ -59,6 +59,7 @@ interface ConfirmDialogProps {
   open: boolean
   title: ReactNode
   description?: ReactNode
+  children?: ReactNode
   confirmLabel: string
   tone?: 'primary' | 'danger' | 'accent'
   loading?: boolean
@@ -66,7 +67,7 @@ interface ConfirmDialogProps {
   onClose: () => void
 }
 
-export function ConfirmDialog({ open, title, description, confirmLabel, tone = 'primary', loading, onConfirm, onClose }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, description, children, confirmLabel, tone = 'primary', loading, onConfirm, onClose }: ConfirmDialogProps) {
   return (
     <Dialog
       open={open}
@@ -83,6 +84,8 @@ export function ConfirmDialog({ open, title, description, confirmLabel, tone = '
           </Button>
         </>
       }
-    />
+    >
+      {children}
+    </Dialog>
   )
 }

@@ -30,9 +30,10 @@ export function EditarPedidoPage({ basePath = '/pedidos' }: { basePath?: string 
 
   return (
     <>
-      <PageHeader title="Editar pedido" description={`Pedido de ${pedido.nombreCliente}. Solo se puede editar mientras nadie lo tomó.`} />
+      <PageHeader title="Editar pedido" description={`Pedido de ${pedido.nombreCliente}. Se puede editar mientras ningún delivery lo haya tomado.`} />
       <PedidoForm
         defaultValues={original}
+        catalogoVendedorId={usuario.rol === 'ADMIN' ? pedido.vendedorId : undefined}
         zonaActual={{
           id: pedido.zonaId,
           nombre: pedido.zonaNombre,

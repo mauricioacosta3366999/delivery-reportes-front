@@ -16,6 +16,10 @@ const paths = {
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   external: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
   pin: 'M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z',
+  tag: 'M3 12V4h8l10 10-8 8zM7.5 8.5h.01',
+  chat: 'M4 20l1.4-4.2A8 8 0 1 1 8.6 19zM9 10h.01M12 10h.01M15 10h.01',
+  assign: 'M15 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM17 8l2 2 4-4',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
 } as const
 
 export type IconName = keyof typeof paths

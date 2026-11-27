@@ -40,11 +40,20 @@ export const pedidoFormSchema = z.object({
         nombre: requerido(150, 'El producto'),
         cantidad: entero(1, 10_000, 'una cantidad'),
         precioUnitario: entero(0, 1_000_000_000, 'un precio'),
+        /** '' = escrito a mano (no viene del catálogo). */
+        productoId: z.string(),
+        /** NaN = sin costo cargado (es opcional). */
+        costoUnitario: z.union([z.nan(), entero(0, 1_000_000_000, 'un costo')]),
       }),
     )
     .min(1, 'Agregá al menos un producto')
     .max(100, 'Máximo 100 productos'),
   observaciones: z.string().trim().max(2000, 'Máximo 2000 caracteres'),
+  pagoDirectoVendedor: z.boolean(),
+  /** Solo al crear desde el admin: '' = a nombre de quien lo carga. */
+  vendedorId: z.string(),
+  /** Solo al crear desde el admin: '' = automático (el delivery por defecto de la zona, si tiene). */
+  repartidorId: z.string(),
 })
 
 export type PedidoFormValues = z.infer<typeof pedidoFormSchema>
@@ -53,7 +62,7 @@ type EntregaForm = PedidoFormValues['ubicacionEntrega']
 export const CAMPOS_PEDIDO = Object.keys(pedidoFormSchema.shape)
 
 export function productoVacio(): PedidoFormValues['productos'][number] {
-  return { nombre: '', cantidad: 1, precioUnitario: Number.NaN }
+  return { nombre: '', cantidad: 1, precioUnitario: Number.NaN, productoId: '', costoUnitario: Number.NaN }
 }
 
 export function pedidoFormDefaults(): PedidoFormValues {
@@ -65,6 +74,9 @@ export function pedidoFormDefaults(): PedidoFormValues {
     ubicacionEntrega: { direccion: '' },
     productos: [productoVacio()],
     observaciones: '',
+    pagoDirectoVendedor: false,
+    vendedorId: '',
+    repartidorId: '',
   }
 }
 
@@ -75,8 +87,17 @@ export function pedidoToForm(pedido: Pedido): PedidoFormValues {
     nombreCliente: pedido.nombreCliente,
     contactoCliente: pedido.contactoCliente,
     ubicacionEntrega: { direccion: pedido.ubicacionEntrega.direccion },
-    productos: pedido.productos.map(({ nombre, cantidad, precioUnitario }) => ({ nombre, cantidad, precioUnitario })),
+    productos: pedido.productos.map(({ nombre, cantidad, precioUnitario, productoId, costoUnitario }) => ({
+      nombre,
+      cantidad,
+      precioUnitario,
+      productoId: productoId ?? '',
+      costoUnitario: costoUnitario ?? Number.NaN,
+    })),
     observaciones: pedido.observaciones ?? '',
+    pagoDirectoVendedor: pedido.pagoDirectoVendedor ?? false,
+    vendedorId: '',
+    repartidorId: '',
   }
 }
 
@@ -89,7 +110,13 @@ export function entregaToPayload({ direccion }: EntregaForm): Ubicacion {
 }
 
 function productosToPayload(productos: PedidoFormValues['productos']): Producto[] {
-  return productos.map(({ nombre, cantidad, precioUnitario }) => ({ nombre: nombre.trim(), cantidad, precioUnitario }))
+  return productos.map(({ nombre, cantidad, precioUnitario, productoId, costoUnitario }) => ({
+    nombre: nombre.trim(),
+    cantidad,
+    precioUnitario,
+    ...(productoId ? { productoId } : {}),
+    ...(Number.isFinite(costoUnitario) ? { costoUnitario } : {}),
+  }))
 }
 
 /**
@@ -107,6 +134,9 @@ export function toCreatePayload(values: PedidoFormValues): CreatePedidoPayload {
     ubicacionEntrega: entregaToPayload(values.ubicacionEntrega),
     productos: productosToPayload(values.productos),
     ...(observaciones ? { observaciones } : {}),
+    ...(values.pagoDirectoVendedor ? { pagoDirectoVendedor: true } : {}),
+    ...(values.vendedorId ? { vendedorId: values.vendedorId } : {}),
+    ...(values.repartidorId ? { repartidorId: values.repartidorId } : {}),
   }
 }
 
@@ -122,15 +152,25 @@ export function toUpdatePayload(values: PedidoFormValues, original: PedidoFormVa
   if (changed('ubicacionEntrega')) payload.ubicacionEntrega = entregaToPayload(values.ubicacionEntrega)
   if (changed('productos')) payload.productos = productosToPayload(values.productos)
   if (values.observaciones.trim() !== original.observaciones.trim()) payload.observaciones = values.observaciones.trim()
+  if (changed('pagoDirectoVendedor')) payload.pagoDirectoVendedor = values.pagoDirectoVendedor
   return payload
 }
 
+/** Costo de los productos para el vendedor (solo los que tienen costo); null si ninguno lo tiene. */
+export function calcularCosto(productos: Array<Partial<Producto>>) {
+  const conCosto = productos.filter((item) => Number.isFinite(item.costoUnitario))
+  if (!conCosto.length) return null
+  return conCosto.reduce((total, item) => total + (Number.isFinite(item.cantidad) ? Number(item.cantidad) : 0) * Number(item.costoUnitario), 0)
+}
+
 /** Importes que mostrará el servidor; en el front son solo una vista previa. */
-export function calcularMontos(productos: Array<Partial<Producto>>, costoDelivery: number) {
+export function calcularMontos(productos: Array<Partial<Producto>>, costoDelivery: number, pagoDirectoVendedor = false) {
   const totalVenta = productos.reduce((total, item) => {
     const cantidad = Number.isFinite(item.cantidad) ? Number(item.cantidad) : 0
     const precio = Number.isFinite(item.precioUnitario) ? Number(item.precioUnitario) : 0
     return total + cantidad * precio
   }, 0)
-  return { totalVenta, costoDelivery, montoTotal: totalVenta + costoDelivery, montoARendir: totalVenta - costoDelivery }
+  // Si el cliente ya le pagó al vendedor, el delivery no cobra y el vendedor debe el delivery.
+  if (pagoDirectoVendedor) return { totalVenta, costoDelivery, montoTotal: 0, montoARendir: -costoDelivery }
+  return { totalVenta, costoDelivery, montoTotal: totalVenta + costoDelivery, montoARendir: totalVenta }
 }

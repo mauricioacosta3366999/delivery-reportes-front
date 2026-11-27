@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
+import { Link } from 'react-router'
 import { z } from 'zod'
 import { Button } from '@/components/ui/Button'
 import { Badge, Card, EmptyState, ErrorState, PageHeader } from '@/components/ui/Card'
@@ -12,6 +13,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { PageLoader } from '@/components/ui/Spinner'
 import { useToast } from '@/components/ui/useToast'
 import { useGuardarZona, useZonas, type Zona, type ZonaInput } from '@/features/zonas/api'
+import { useUsuariosPorRol } from '@/features/usuarios/api'
 import { getErrorMessage } from '@/lib/api/client'
 import { applyApiErrors } from '@/lib/api/errors'
 import { formatGs } from '@/lib/format'
@@ -25,6 +27,7 @@ export function ZonasPage() {
   const [editando, setEditando] = useState<Zona | 'nueva' | null>(null)
   const toast = useToast()
   const guardar = useGuardarZona()
+  const repartidores = useUsuariosPorRol('REPARTIDOR')
   const query = useZonas({ activa: filtro === 'todas' ? undefined : filtro === 'activas', pagina, limite: 20 })
 
   function toggleActiva(zona: Zona) {
@@ -41,7 +44,7 @@ export function ZonasPage() {
     <>
       <PageHeader
         title="Zonas de entrega"
-        description="Los vendedores eligen una zona activa al crear un pedido. Cambiar el costo no afecta pedidos ya creados."
+        description="Los vendedores eligen una zona activa al crear un pedido. Si la zona tiene delivery por defecto, los pedidos nuevos se le asignan solos. Cambiar el costo no afecta pedidos ya creados."
         actions={
           <Button onClick={() => setEditando('nueva')}>
             <Icon name="plus" className="size-4" /> Nueva zona
@@ -99,6 +102,26 @@ export function ZonasPage() {
                       </Badge>
                     )}
                   </div>
+                  <div className="space-y-1 text-sm">
+                    <p className="flex items-center gap-1.5 text-gris">
+                      <Icon name="assign" className="size-4 shrink-0" />
+                      {zona.repartidorDefaultId ? (
+                        <span>
+                          Delivery por defecto: <span className="font-semibold text-tinta">{repartidores.porId.get(zona.repartidorDefaultId)?.nombre ?? '—'}</span>
+                        </span>
+                      ) : (
+                        'Sin delivery por defecto'
+                      )}
+                    </p>
+                    <Link
+                      to={`/admin/pedidos?zonaId=${zona._id}&activos=true`}
+                      className="inline-flex min-h-9 items-center gap-1.5 font-semibold text-naranja-700 underline-offset-4 hover:underline"
+                    >
+                      <Icon name="box" className="size-4" />
+                      {zona.pedidosActivos ?? 0} {zona.pedidosActivos === 1 ? 'pedido en curso' : 'pedidos en curso'}
+                      <span className="sr-only"> en {zona.nombre}</span>
+                    </Link>
+                  </div>
                   <div className="mt-auto flex gap-2 pt-1">
                     <Button size="sm" variant="secondary" className="flex-1" onClick={() => setEditando(zona)}>
                       Editar
@@ -131,6 +154,8 @@ const schema = z.object({
   descripcion: z.string().trim().max(500, 'Máximo 500 caracteres'),
   costoDelivery: z.number({ error: 'Ingresá el costo' }).int().min(0, 'No puede ser negativo').max(1_000_000_000, 'Máximo 1.000.000.000 Gs'),
   requiereTransportadora: z.boolean(),
+  // '' = sin delivery por defecto (se envía null).
+  repartidorDefaultId: z.string(),
   activa: z.boolean(),
 })
 type Values = z.infer<typeof schema>
@@ -138,6 +163,7 @@ type Values = z.infer<typeof schema>
 function ZonaFormDialog({ zona, onClose }: { zona: Zona | null; onClose: () => void }) {
   const toast = useToast()
   const guardar = useGuardarZona()
+  const repartidores = useUsuariosPorRol('REPARTIDOR')
   const [formError, setFormError] = useState<string | null>(null)
   const {
     register,
@@ -148,16 +174,24 @@ function ZonaFormDialog({ zona, onClose }: { zona: Zona | null; onClose: () => v
   } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: zona
-      ? { nombre: zona.nombre, descripcion: zona.descripcion ?? '', costoDelivery: zona.costoDelivery, requiereTransportadora: zona.requiereTransportadora, activa: zona.activa }
-      : { nombre: '', descripcion: '', costoDelivery: Number.NaN, requiereTransportadora: false, activa: true },
+      ? {
+          nombre: zona.nombre,
+          descripcion: zona.descripcion ?? '',
+          costoDelivery: zona.costoDelivery,
+          requiereTransportadora: zona.requiereTransportadora,
+          repartidorDefaultId: zona.repartidorDefaultId ?? '',
+          activa: zona.activa,
+        }
+      : { nombre: '', descripcion: '', costoDelivery: Number.NaN, requiereTransportadora: false, repartidorDefaultId: '', activa: true },
   })
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
+    const payload: ZonaInput = { ...values, repartidorDefaultId: values.repartidorDefaultId || null }
     // En edición solo se envía lo que cambió.
     const input: Partial<ZonaInput> = zona
-      ? Object.fromEntries(Object.entries(values).filter(([key]) => dirtyFields[key as keyof Values]))
-      : values
+      ? Object.fromEntries(Object.entries(payload).filter(([key]) => dirtyFields[key as keyof Values]))
+      : payload
     if (zona && Object.keys(input).length === 0) return onClose()
     try {
       await guardar.mutateAsync({ id: zona?._id, input })
@@ -203,6 +237,26 @@ function ZonaFormDialog({ zona, onClose }: { zona: Zona | null; onClose: () => v
           )}
         />
         <Checkbox label="Requiere transportadora" {...register('requiereTransportadora')} />
+        <Field
+          label="Delivery por defecto"
+          optional
+          hint="Los pedidos nuevos de esta zona se le asignan automáticamente. Igual podés cambiarlo en cada pedido."
+          error={errors.repartidorDefaultId?.message}
+        >
+          {(a11y) => (
+            <Select {...a11y} {...register('repartidorDefaultId')} disabled={repartidores.isPending}>
+              <option value="">Ninguno (disponible para todos)</option>
+              {(repartidores.data ?? [])
+                .filter((usuario) => usuario.activo || usuario._id === zona?.repartidorDefaultId)
+                .map((usuario) => (
+                  <option key={usuario._id} value={usuario._id}>
+                    {usuario.nombre}
+                    {usuario.activo ? '' : ' (inactivo)'}
+                  </option>
+                ))}
+            </Select>
+          )}
+        </Field>
         <Checkbox label="Activa (visible para los vendedores)" {...register('activa')} />
       </form>
     </Dialog>

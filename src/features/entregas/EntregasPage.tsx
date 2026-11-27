@@ -16,7 +16,7 @@ const tabs: Record<Tab, { estado: Estado; vacio: string; detalle: string }> = {
   disponibles: {
     estado: 'INICIADO',
     vacio: 'No hay pedidos disponibles',
-    detalle: 'Cuando un vendedor cargue un pedido nuevo, va a aparecer acá. La lista se actualiza sola.',
+    detalle: 'Cuando un vendedor cargue un pedido nuevo o un administrador te asigne uno, va a aparecer acá. La lista se actualiza sola.',
   },
   pendientes: {
     estado: 'TOMADO',
@@ -78,7 +78,8 @@ export function EntregasPage() {
       ) : (
         <>
           <ul className="grid gap-4 md:grid-cols-2">
-            {query.data.datos.map((pedido) => (
+            {/* Los asignados a mí van primero: son los que me tocan sí o sí. */}
+            {query.data.datos.toSorted((a, b) => Number(b.repartidorId === usuario._id) - Number(a.repartidorId === usuario._id)).map((pedido) => (
               <li key={pedido._id}>
                 <EntregaCard pedido={pedido} usuario={usuario} onAccion={(accion) => pedir(pedido, accion)} cargando={enCurso?.id === pedido._id} />
               </li>

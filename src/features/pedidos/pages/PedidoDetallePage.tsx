@@ -8,6 +8,8 @@ import { ApiError, getErrorMessage } from '@/lib/api/client'
 import { usePedido } from '../api'
 import { AccionesPedido } from '../components/AccionesPedido'
 import { PedidoDetalle, TelLink } from '../components/PedidoDetalle'
+import { estaAsignado, etiquetaPedido } from '../types'
+import { useAsignarDelivery } from '@/features/admin/useAsignarDelivery'
 
 interface Props {
   /** Ruta del listado al que vuelve, p. ej. /pedidos, /entregas o /admin/pedidos. */
@@ -21,6 +23,7 @@ export function PedidoDetallePage({ basePath, backLabel }: Props) {
   const query = usePedido(id)
   const esAdmin = usuario.rol === 'ADMIN'
   const repartidores = useUsuariosPorRol('REPARTIDOR', esAdmin)
+  const asignacion = useAsignarDelivery()
 
   const volver = (
     <Link to={basePath} className="mb-3 inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-azul hover:underline">
@@ -48,23 +51,34 @@ export function PedidoDetallePage({ basePath, backLabel }: Props) {
   return (
     <>
       {volver}
-      <PageHeader title={pedido.nombreCliente} description={`Pedido #${pedido._id.slice(-6).toUpperCase()} · ${pedido.zonaNombre}`} />
+      <PageHeader title={pedido.nombreCliente} description={`Pedido ${etiquetaPedido(pedido)} · ${pedido.zonaNombre}`} />
       <PedidoDetalle
         pedido={pedido}
-        acciones={<AccionesPedido pedido={pedido} usuario={usuario} editarPath={`${basePath}/${pedido._id}/editar`} />}
+        acciones={
+          <AccionesPedido
+            pedido={pedido}
+            usuario={usuario}
+            editarPath={`${basePath}/${pedido._id}/editar`}
+            onAsignar={esAdmin ? () => asignacion.abrir(pedido) : undefined}
+          />
+        }
         extra={
           esAdmin && repartidor ? (
-            <CardSection title="Delivery asignado">
+            <CardSection title={estaAsignado(pedido) ? 'Delivery asignado' : 'Delivery'}>
               <DataList
                 items={[
                   { label: 'Nombre', value: repartidor.nombre },
                   { label: 'Contacto', value: repartidor.contacto ? <TelLink contacto={repartidor.contacto} /> : '—' },
+                  ...(estaAsignado(pedido) && pedido.asignadoPor
+                    ? [{ label: 'Asignado por', value: pedido.asignadoPor === 'ZONA' ? 'Delivery por defecto de la zona' : 'Un administrador' }]
+                    : []),
                 ]}
               />
             </CardSection>
           ) : undefined
         }
       />
+      {asignacion.dialogo}
     </>
   )
 }

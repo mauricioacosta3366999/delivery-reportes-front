@@ -12,6 +12,7 @@ const pedidos = () => import('./pages/pedidos')
 const entregas = () => import('./pages/entregas')
 const admin = () => import('./pages/admin')
 const reportes = () => import('./pages/reportes')
+const productos = () => import('./pages/productos')
 
 export const routes: RouteObject[] = [
   {
@@ -62,7 +63,12 @@ export const routes: RouteObject[] = [
                   { path: '/admin/pedidos/:id/editar', lazy: async () => ({ Component: (await admin()).AdminEditarPedido }) },
                   { path: '/admin/zonas', lazy: async () => ({ Component: (await admin()).Zonas }) },
                   { path: '/admin/usuarios', lazy: async () => ({ Component: (await admin()).Usuarios }) },
+                  { path: '/admin/deliverys', lazy: async () => ({ Component: (await admin()).Deliverys }) },
                 ],
+              },
+              {
+                element: <RequireRole roles={['VENDEDOR', 'ADMIN']} />,
+                children: [{ path: '/productos', lazy: async () => ({ Component: (await productos()).Productos }) }],
               },
               { path: '/reportes', lazy: async () => ({ Component: (await reportes()).Reportes }) },
               { path: '*', element: <NotFoundPage /> },

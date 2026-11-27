@@ -8,21 +8,25 @@ import { PedidoFiltrosBar } from '@/features/pedidos/components/PedidoFiltrosBar
 import { PedidosLista } from '@/features/pedidos/components/PedidosLista'
 import { useFiltrosURL } from '@/features/pedidos/useFiltrosURL'
 import { useUsuariosPorRol } from '@/features/usuarios/api'
+import { useZonas } from '@/features/zonas/api'
 import { getErrorMessage } from '@/lib/api/client'
+import { useAsignarDelivery } from './useAsignarDelivery'
 
-/** El admin ve todos los pedidos, con filtros por vendedor y delivery. */
+/** El admin ve todos los pedidos, con filtros por vendedor, delivery y zona, y asigna deliverys. */
 export function AdminPedidosPage() {
   const { filtros, setFiltros, limpiar, activos } = useFiltrosURL()
   const rangoInvalido = Boolean(filtros.desde && filtros.hasta && filtros.desde > filtros.hasta)
   const query = usePedidos(rangoInvalido ? { ...filtros, desde: undefined, hasta: undefined } : filtros)
   const vendedores = useUsuariosPorRol('VENDEDOR')
   const repartidores = useUsuariosPorRol('REPARTIDOR')
+  const zonas = useZonas({ limite: 100 })
+  const asignacion = useAsignarDelivery()
 
   return (
     <>
       <PageHeader
         title="Pedidos"
-        description="Todos los pedidos del sistema."
+        description="Todos los pedidos del sistema. Asigná un delivery desde el listado o el detalle."
         actions={
           <ButtonLink to="/admin/pedidos/nuevo">
             <Icon name="plus" className="size-4" /> Nuevo pedido
@@ -36,6 +40,7 @@ export function AdminPedidosPage() {
         activos={activos}
         vendedores={vendedores.data ?? []}
         repartidores={repartidores.data ?? []}
+        zonas={zonas.data?.datos ?? []}
       />
 
       {query.isPending ? (
@@ -51,10 +56,12 @@ export function AdminPedidosPage() {
             basePath="/admin/pedidos"
             mostrarVendedor
             nombreRepartidor={(id) => repartidores.porId.get(id)?.nombre}
+            onAsignar={asignacion.abrir}
           />
           <Pagination pagina={query.data.pagina} limite={query.data.limite} total={query.data.total} onChange={(pagina) => setFiltros({ pagina })} />
         </>
       )}
+      {asignacion.dialogo}
     </>
   )
 }

@@ -1,7 +1,7 @@
 # Delivery Reportes — Front
 
 SPA para el sistema de delivery: vendedores cargan pedidos, deliverys los toman y los entregan,
-y cada uno descarga su reporte mensual en PDF. Consume la API de
+y cada uno descarga su reporte mensual en PDF o Excel. Consume la API de
 [`Delivery-reportes-api`](../Delivery-reportes-api) (casos de uso en `use_cases/`).
 
 **Stack:** React 19 · Vite 8 · TypeScript · Tailwind CSS v4 · React Router · TanStack Query ·
@@ -69,11 +69,12 @@ vendedores y deliverys desde `/registro`.
 
 | Rol | Rutas | Puede |
 |---|---|---|
-| Vendedor | `/pedidos`, `/pedidos/nuevo`, `/pedidos/:id`, `/reportes` | Crear, ver, editar y cancelar sus pedidos (mientras estén INICIADOS); reporte mensual |
-| Delivery | `/entregas` (Disponibles / Pendientes / Entregados), `/reportes` | Tomar pedidos disponibles y marcarlos como entregados |
-| Admin | `/admin/pedidos`, `/admin/zonas`, `/admin/usuarios`, `/reportes` | Ver todos los pedidos, gestionar zonas y usuarios, reportes por vendedor o delivery |
+| Vendedor | `/pedidos`, `/pedidos/nuevo`, `/pedidos/:id`, `/productos`, `/reportes` | Crear, ver, editar y cancelar sus pedidos (mientras estén INICIADOS, aunque estén asignados); catálogo de productos con costo; reporte mensual |
+| Delivery | `/entregas` (Disponibles / Pendientes / Entregados), `/reportes` | Tomar pedidos disponibles o asignados a él (aparecen primero) y marcarlos como entregados; nunca ve costos |
+| Admin | `/admin/pedidos`, `/admin/deliverys`, `/admin/zonas`, `/admin/usuarios`, `/productos`, `/reportes` | Ver todos los pedidos y asignarles delivery, ver la carga por delivery y zona, gestionar zonas (con delivery por defecto), usuarios y catálogos, reportes por vendedor o delivery |
 
-Ciclo del pedido: **Iniciado → Tomado → Entregado** (o **Cancelado** mientras nadie lo tomó).
+Ciclo del pedido: **Iniciado → (Asignado) → Tomado → Entregado** (o **Cancelado** mientras nadie lo tomó).
+"Asignado" no es un estado de la API: es un Iniciado con `repartidorId` (`estaAsignado` en `types.ts`).
 Las etiquetas visibles están en `src/features/pedidos/types.ts` (`estadoLabels`).
 
 ## Estructura
@@ -86,8 +87,9 @@ src/
     auth/         sesión (localStorage + logout al vencer el JWT), login, registro, guards
     pedidos/      tipos, API + hooks de Query, formulario, listado, detalle, acciones
     entregas/     vista mobile-first del delivery
-    reportes/     descarga del PDF mensual
-    admin/        pedidos, zonas y usuarios
+    reportes/     descarga del reporte mensual (PDF o Excel)
+    productos/    catálogo del vendedor (precio de venta y costo)
+    admin/        pedidos (con asignación de delivery), deliverys, zonas y usuarios
   lib/            cliente HTTP (ApiError), formatos (Gs, fechas en America/Asuncion)
   test/           MSW, fixtures y helper para montar la app
 ```

@@ -2,7 +2,9 @@ import type { ReactNode } from 'react'
 import { CardSection, DataList } from '@/components/ui/Card'
 import { Icon } from '@/components/ui/Icon'
 import { formatFecha, formatFechaHora, formatGs } from '@/lib/format'
+import { numeroWhatsApp } from '@/lib/telefono'
 import type { Pedido, Ubicacion } from '../types'
+import { estaAsignado } from '../types'
 import { enlaceMapa, textoUbicacion } from '../ubicacion'
 import { EstadoBadge } from './EstadoBadge'
 
@@ -19,13 +21,27 @@ export function UbicacionLink({ ubicacion }: { ubicacion: Ubicacion }) {
   )
 }
 
+/** Teléfono con acceso directo a llamar y a WhatsApp (el mensaje se escribe en la app de WhatsApp). */
 export function TelLink({ contacto }: { contacto: string }) {
   const telefono = contacto.replace(/[^\d+]/g, '')
   if (telefono.length < 6) return <>{contacto}</>
+  const whatsapp = numeroWhatsApp(contacto)
   return (
-    <a href={`tel:${telefono}`} className="inline-flex items-center gap-1.5 font-medium text-azul underline-offset-4 hover:underline">
-      <Icon name="phone" className="size-4" /> {contacto}
-    </a>
+    <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+      <a href={`tel:${telefono}`} className="inline-flex items-center gap-1.5 font-medium text-azul underline-offset-4 hover:underline">
+        <Icon name="phone" className="size-4" /> {contacto}
+      </a>
+      {whatsapp && (
+        <a
+          href={`https://wa.me/${whatsapp}`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-exito-50 px-2 text-xs font-semibold text-exito hover:bg-exito/15"
+        >
+          <Icon name="chat" className="size-4" /> WhatsApp<span className="sr-only"> a {contacto} (abre WhatsApp)</span>
+        </a>
+      )}
+    </span>
   )
 }
 
@@ -34,7 +50,7 @@ export function PedidoDetalle({ pedido, acciones, extra }: { pedido: Pedido; acc
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
       <div className="space-y-5">
-        <CardSection title="Cliente y entrega" action={<EstadoBadge estado={pedido.estado} />}>
+        <CardSection title="Cliente y entrega" action={<EstadoBadge estado={pedido.estado} asignado={estaAsignado(pedido)} />}>
           <DataList
             items={[
               { label: 'Cliente', value: pedido.nombreCliente },
@@ -54,7 +70,17 @@ export function PedidoDetalle({ pedido, acciones, extra }: { pedido: Pedido; acc
                   </span>
                 ),
               },
-              { label: 'Vendedor', value: pedido.vendedorNombre },
+              {
+                label: 'Vendedor',
+                value: pedido.vendedorContacto ? (
+                  <span className="inline-flex flex-wrap items-center gap-x-2">
+                    {pedido.vendedorNombre} <TelLink contacto={pedido.vendedorContacto} />
+                  </span>
+                ) : (
+                  pedido.vendedorNombre
+                ),
+              },
+              ...(pedido.pagoDirectoVendedor ? [{ label: 'Cobro', value: 'El cliente ya le pagó al vendedor' }] : []),
               ...(pedido.observaciones ? [{ label: 'Observaciones', value: <span className="whitespace-pre-line">{pedido.observaciones}</span>, full: true }] : []),
             ]}
           />
@@ -86,13 +112,19 @@ export function PedidoDetalle({ pedido, acciones, extra }: { pedido: Pedido; acc
             <Fila label="Venta de productos" valor={formatGs(pedido.totalVenta)} />
             <Fila label="Delivery" valor={formatGs(pedido.costoDelivery)} />
             <div className="flex justify-between gap-3 border-t border-linea pt-2.5">
-              <dt className="font-semibold">Total a cobrar</dt>
+              <dt className="font-semibold">{pedido.pagoDirectoVendedor ? 'El delivery cobra' : 'Total a cobrar'}</dt>
               <dd className="font-extrabold text-azul-900">{formatGs(pedido.montoTotal)}</dd>
             </div>
             <div className="flex justify-between gap-3 rounded-lg bg-cafe-50 px-3 py-2">
               <dt className="font-semibold text-cafe">A rendir</dt>
               <dd className="font-extrabold text-cafe">{formatGs(pedido.montoARendir)}</dd>
             </div>
+            {typeof pedido.totalCosto === 'number' && (
+              <div className="space-y-2.5 border-t border-linea pt-2.5">
+                <Fila label="Costo de los productos" valor={formatGs(pedido.totalCosto)} />
+                <Fila label="Ganancia (venta − costo)" valor={formatGs(pedido.totalVenta - pedido.totalCosto)} />
+              </div>
+            )}
           </dl>
         </CardSection>
 

@@ -15,6 +15,8 @@ export function useFiltrosURL(limite = 20) {
     const hasta = params.get('hasta')
     const vendedorId = params.get('vendedorId')
     const repartidorId = params.get('repartidorId')
+    const zonaId = params.get('zonaId')
+    const numero = Number(params.get('numero'))
     const pagina = Number(params.get('pagina'))
     return {
       estado: ESTADOS.includes(estado as Estado) ? (estado as Estado) : undefined,
@@ -22,6 +24,10 @@ export function useFiltrosURL(limite = 20) {
       hasta: hasta && FECHA.test(hasta) ? hasta : undefined,
       vendedorId: vendedorId && OBJECT_ID.test(vendedorId) ? vendedorId : undefined,
       repartidorId: repartidorId && OBJECT_ID.test(repartidorId) ? repartidorId : undefined,
+      zonaId: zonaId && OBJECT_ID.test(zonaId) ? zonaId : undefined,
+      activos: params.get('activos') === 'true' ? true : undefined,
+      sinAsignar: params.get('sinAsignar') === 'true' && !repartidorId ? true : undefined,
+      numero: Number.isSafeInteger(numero) && numero >= 1 ? numero : undefined,
       pagina: Number.isInteger(pagina) && pagina >= 1 && pagina <= 10_000 ? pagina : 1,
       limite,
     }
@@ -49,7 +55,9 @@ export function useFiltrosURL(limite = 20) {
   )
 
   const limpiar = useCallback(() => setParams(new URLSearchParams(), { replace: true }), [setParams])
-  const activos = Boolean(filtros.estado || filtros.desde || filtros.hasta || filtros.vendedorId || filtros.repartidorId)
+  const activos = Boolean(
+    filtros.estado || filtros.desde || filtros.hasta || filtros.vendedorId || filtros.repartidorId || filtros.numero || filtros.zonaId || filtros.activos || filtros.sinAsignar,
+  )
 
   return { filtros, setFiltros, limpiar, activos }
 }

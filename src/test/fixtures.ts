@@ -49,8 +49,10 @@ export function makeZona(overrides: Partial<Zona> = {}): Zona {
 export function makePedido(overrides: Partial<Pedido> = {}): Pedido {
   return {
     _id: '6737c000c2b4e8a1d4f00101',
+    numero: 57,
     vendedorId: ids.VENDEDOR,
     vendedorNombre: 'Luciano Benítez',
+    vendedorContacto: '0981 555 000',
     fechaPedido: '2026-10-05T03:00:00.000Z',
     repartidorId: null,
     zonaId: '6737b000c2b4e8a1d4f00012',
@@ -65,6 +67,7 @@ export function makePedido(overrides: Partial<Pedido> = {}): Pedido {
     totalVenta: 310000,
     montoTotal: 350000,
     montoARendir: 270000,
+    pagoDirectoVendedor: false,
     estado: 'INICIADO',
     observaciones: '',
     tomadoAt: null,
