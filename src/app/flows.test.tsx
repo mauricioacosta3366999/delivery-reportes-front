@@ -245,27 +245,25 @@ describe('pedidos asignados (CU-07, CU-12, CU-13)', () => {
     expect(tomarBody).toBe('')
   })
 
-  it('al entregar, el delivery corrige que el cliente le pagó al vendedor (CU-08/11)', async () => {
+  it('al entregar no pide confirmar quién cobró: manda la transición sin body (CU-08)', async () => {
     const tomado = makePedido({ estado: 'TOMADO', repartidorId: delivery._id, tomadoAt: '2026-11-15T22:00:00.000Z' })
-    let body: unknown
+    let body: string | undefined
     server.use(
       http.get(`${API}/pedidos`, () => HttpResponse.json(paginated([tomado]))),
       http.post(`${API}/pedidos/:id/entregar`, async ({ request }) => {
-        body = await request.json()
-        return HttpResponse.json({ ...tomado, estado: 'ENTREGADO', pagoDirectoVendedor: true, montoTotal: 0, montoARendir: -40000 })
+        body = await request.text()
+        return HttpResponse.json({ ...tomado, estado: 'ENTREGADO' })
       }),
     )
     const { user } = renderApp('/entregas?tab=pendientes', { usuario: delivery })
 
     await user.click(await screen.findByRole('button', { name: /Marcar como entregado/ }))
     const dialog = await screen.findByRole('dialog')
-    const casilla = within(dialog).getByRole('checkbox', { name: /le pagó directo al vendedor/ })
-    expect(casilla).not.toBeChecked()
-    await user.click(casilla)
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Sí, fue entregado' }))
 
     expect(await screen.findByText(/marcado como entregado/)).toBeInTheDocument()
-    expect(body).toEqual({ pagoDirectoVendedor: true })
+    expect(body).toBe('')
   })
 
   it('un pedido con pago directo le avisa al delivery que no cobre', async () => {

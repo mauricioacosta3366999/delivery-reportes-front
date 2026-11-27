@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { ConfirmDialog } from '@/components/ui/Dialog'
-import { Checkbox } from '@/components/ui/Field'
 import { useToast } from '@/components/ui/useToast'
 import { ApiError, getErrorMessage } from '@/lib/api/client'
 import { formatGs } from '@/lib/format'
@@ -49,20 +48,15 @@ export function useAccionPedido() {
   const toast = useToast()
   const mutation = useTransicionPedido()
   const [pendiente, setPendiente] = useState<{ pedido: Pedido; accion: Transicion } | null>(null)
-  // Al entregar, el delivery puede corregir quién cobró (CU-08/11).
-  const [pagoDirecto, setPagoDirecto] = useState(false)
-
   function pedir(pedido: Pedido, accion: Transicion) {
-    setPagoDirecto(Boolean(pedido.pagoDirectoVendedor))
     setPendiente({ pedido, accion })
   }
 
   function ejecutar() {
     if (!pendiente) return
     const { pedido, accion } = pendiente
-    const corrigePago = accion === 'entregar' && pagoDirecto !== Boolean(pedido.pagoDirectoVendedor)
     mutation.mutate(
-      { id: pedido._id, accion, body: corrigePago ? { pagoDirectoVendedor: pagoDirecto } : undefined },
+      { id: pedido._id, accion },
       {
         onSuccess: (actualizado) => toast.success(copy[accion].exito(actualizado)),
         onError: (error) => {
@@ -84,16 +78,7 @@ export function useAccionPedido() {
       loading={mutation.isPending}
       onConfirm={ejecutar}
       onClose={() => !mutation.isPending && setPendiente(null)}
-    >
-      {pendiente.accion === 'entregar' && (
-        <Checkbox
-          label="El cliente le pagó directo al vendedor (no cobré nada)"
-          checked={pagoDirecto}
-          onChange={(event) => setPagoDirecto(event.target.checked)}
-          disabled={mutation.isPending}
-        />
-      )}
-    </ConfirmDialog>
+    />
   )
 
   return {

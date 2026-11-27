@@ -169,8 +169,9 @@ const numero = (value: unknown) => (Number.isFinite(value) ? Number(value) : 0)
 
 /**
  * Importes que mostrará el servidor; en el front son solo una vista previa (espejo de
- * calculateAmounts/calculateCost del backend). Con pago directo al vendedor el delivery
- * no cobra nada y el vendedor le debe el servicio: a rendir = −delivery.
+ * calculateAmounts/calculateCost del backend). El delivery lo paga el cliente, así que se
+ * le rinde al vendedor toda la venta. Con pago directo al vendedor el delivery no cobra
+ * nada y el vendedor le debe el servicio: a rendir = −delivery.
  */
 export function calcularMontos(productos: Array<Partial<Producto>>, costoDelivery: number, pagoDirectoVendedor = false) {
   const totalVenta = productos.reduce((total, item) => total + numero(item.cantidad) * numero(item.precioUnitario), 0)
@@ -180,7 +181,7 @@ export function calcularMontos(productos: Array<Partial<Producto>>, costoDeliver
     totalVenta,
     costoDelivery,
     montoTotal: pagoDirectoVendedor ? 0 : totalVenta + costoDelivery,
-    montoARendir: pagoDirectoVendedor ? -costoDelivery : totalVenta - costoDelivery,
+    montoARendir: pagoDirectoVendedor ? -costoDelivery : totalVenta,
     totalCosto,
   }
 }

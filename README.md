@@ -74,7 +74,7 @@ vendedores y deliverys desde `/registro`.
 | Rol | Rutas | Puede |
 |---|---|---|
 | Vendedor | `/pedidos`, `/pedidos/nuevo`, `/pedidos/:id`, `/productos`, `/reportes` | Crear, ver, editar y cancelar sus pedidos (mientras estén INICIADOS, aunque estén asignados); marcar "el cliente ya me pagó"; catálogo con precio y costo; reporte mensual |
-| Delivery | `/entregas` (Disponibles / Pendientes / Entregados), `/reportes` | Ver primero los pedidos asignados a él, tomar disponibles, marcarlos como entregados (y corregir quién cobró), subir la foto de la boleta de la transportadora |
+| Delivery | `/entregas` (Disponibles / Pendientes / Entregados), `/reportes` | Ver primero los pedidos asignados a él, tomar disponibles, marcarlos como entregados, subir la foto de la boleta de la transportadora |
 | Admin | `/admin/pedidos`, `/admin/deliverys`, `/admin/zonas`, `/admin/productos`, `/admin/usuarios`, `/reportes` | Todos los pedidos (crear a nombre de un vendedor, asignar o liberar el delivery), carga por delivery y zona, zonas con delivery por defecto, catálogos, usuarios y reportes |
 
 Ciclo del pedido: **Iniciado** (recibe su número `#N`) → *Asignado* (opcional: por el admin o
@@ -113,6 +113,7 @@ src/
 - **Importes:** enteros en guaraníes, formateados `es-PY` (`350.000 Gs`). El front muestra
   una vista previa (`calcularMontos`, con pago directo y ganancia), pero **los importes los
   calcula siempre el backend**: nunca se envían.
+- **A rendir:** la venta completa (el delivery lo paga el cliente dentro de lo que cobra el repartidor).
 - **Pago directo al vendedor:** el delivery no cobra (`montoTotal = 0`) y a rendir = −delivery.
 - **Costos:** el delivery nunca los recibe; el vendedor y el admin ven costo y ganancia.
 - **Boleta de depósito (CU-17):** la foto se comprime a JPEG en el navegador y se sube directo a

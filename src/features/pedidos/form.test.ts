@@ -143,9 +143,13 @@ describe('calcularMontos', () => {
       totalVenta: 119000,
       costoDelivery: 38000,
       montoTotal: 157000,
-      montoARendir: 81000,
+      montoARendir: 119000,
       totalCosto: null,
     })
+  })
+
+  it('a rendir es la venta completa aunque el delivery cueste más', () => {
+    expect(calcularMontos([fila('Llavero', 1, 2000)], 5000)).toMatchObject({ montoTotal: 7000, montoARendir: 2000 })
   })
 
   it('con pago directo al vendedor el delivery no cobra y se descuenta el delivery (CU-11)', () => {
@@ -161,6 +165,6 @@ describe('calcularMontos', () => {
   })
 
   it('ignora filas incompletas mientras se escribe', () => {
-    expect(calcularMontos([{ cantidad: 2, precioUnitario: Number.NaN }], 25000).montoARendir).toBe(-25000)
+    expect(calcularMontos([{ cantidad: 2, precioUnitario: Number.NaN }], 25000).montoARendir).toBe(0)
   })
 })

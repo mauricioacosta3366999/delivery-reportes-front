@@ -454,9 +454,6 @@ function ResumenMontos({ control, opciones, zonaActual }: { control: Control<Ped
             <dt className="font-semibold text-cafe">A rendir</dt>
             <dd className="font-extrabold text-cafe">{formatGs(montos.montoARendir)}</dd>
           </div>
-          <p className="mt-0.5 text-xs text-cafe/80">
-            {pagoDirecto ? '= − delivery (el vendedor ya cobró la venta)' : '= venta de productos − delivery'}
-          </p>
         </div>
         {montos.totalCosto !== null && gananciaVendedor !== null && (
           <>

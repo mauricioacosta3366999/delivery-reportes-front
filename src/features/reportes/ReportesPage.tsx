@@ -135,8 +135,8 @@ export function ReportesPage() {
         </form>
         <ul className="space-y-1.5 border-t border-linea pt-4 text-xs text-gris">
           <li>• Incluye solo pedidos entregados, según la fecha de entrega.</li>
-          <li>• "A rendir" = venta de productos − costo de delivery (puede ser negativo).</li>
-          <li>• Si el cliente le pagó directo al vendedor, el delivery no cobró nada y se descuenta el costo del delivery.</li>
+          <li>• "A rendir" es la venta de productos: el delivery lo paga el cliente.</li>
+          <li>• Si el cliente le pagó directo al vendedor, el delivery no cobró nada y "A rendir" queda en negativo por el costo del delivery.</li>
           <li>• El Excel trae las mismas columnas, con los importes como números para sumar u ordenar.</li>
           <li>• Si no hubo entregas, se descarga igual con los totales en 0.</li>
         </ul>

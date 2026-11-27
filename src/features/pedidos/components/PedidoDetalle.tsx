@@ -126,9 +126,6 @@ export function PedidoDetalle({ pedido, acciones, extra }: { pedido: Pedido; acc
                 <dt className="font-semibold text-cafe">A rendir</dt>
                 <dd className="font-extrabold text-cafe">{formatGs(pedido.montoARendir)}</dd>
               </div>
-              <p className="mt-0.5 text-xs text-cafe/80">
-                {pedido.pagoDirectoVendedor ? '= − delivery (el vendedor ya cobró la venta)' : '= venta de productos − delivery'}
-              </p>
             </div>
             {pedido.totalCosto !== null && pedido.totalCosto !== undefined && (
               <>
